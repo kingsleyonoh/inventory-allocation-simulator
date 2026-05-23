@@ -7,8 +7,10 @@
 | File | Summary |
 |------|---------|
 | `EXAMPLE.md` | Template showing the expected shape — delete once a real foundation primitive exists. |
+| `api-request-foundation.md` | Shared API error envelope, pagination/filter validation, rate-limit, API-key/session tenant auth, and request-cache contract. |
 | `core-config-loading.md` | Typed environment configuration loader and validation contract for server, CLI, and services. |
 | `db-migration-runner.md` | Ordered SQL migration discovery/execution contract and DB health readiness integration. |
+| `db-tenant-scoped-queries.md` | Tenant context, required tenant predicates, join-first SQL, and cross-tenant query-test contract. |
 | `request-cached-helpers.md` | Request-scoped cache primitive for expensive per-tenant lookups and summary computations. |
 | `runtime-lifecycle.md` | Coordinated shutdown contract for Genie HTTP, background workers, and service resources. |
 | `service-dependency-injection.md` | `AppServices` container wiring for DB, Redis, DuckDB, jobs, and observability dependencies. |

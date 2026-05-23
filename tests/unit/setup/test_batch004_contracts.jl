@@ -42,6 +42,17 @@ end
     @test !(".agent/rules/CODEBASE_CONTEXT.md" in String.(implement_result.filesChanged))
 end
 
+@testset "Batch 010 runtime artifacts expose runnable E2E command even when skipped" begin
+    gate = batch004_read(".yolo", "gates", "e2e-batch-010.md")
+    implement_result = batch004_json(".yolo", "batch-results", "batch-010-implement.json")
+
+    @test occursin("result: SKIPPED_NO_ENDPOINTS", gate)
+    @test occursin("endpoints_touched: no", gate)
+    @test occursin("command: npx playwright test", gate)
+    @test String(implement_result.tests.e2e.command) == "npx playwright test"
+    @test Bool(implement_result.tests.e2e.required) == false
+end
+
 @testset "Authz matrix fixture covers every PRD role/resource cell" begin
     matrix = batch004_json("tests", "fixtures", "authz_matrix.json")
     @test matrix.schemaVersion == 1
