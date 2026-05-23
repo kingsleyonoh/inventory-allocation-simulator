@@ -13,3 +13,12 @@ security_readroot(path...) = read(joinpath(SECURITY_ROOT, path...), String)
     @test !occursin("DATABASE_URL=postgres://inventory:inventory@", prd_source)
     @test occursin(raw"DATABASE_URL=postgres://inventory:${POSTGRES_PASSWORD}@localhost:5432/inventory_allocation", prd_source)
 end
+
+@testset "Production deployment security contracts" begin
+    prod_compose = security_readroot("docker-compose.prod.yml")
+
+    @test !occursin(raw"${POSTGRES_PASSWORD:-", prod_compose)
+    @test occursin(raw"POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}", prod_compose)
+    @test count(_ -> true, eachmatch(r"resources:\s*\n\s*limits:", prod_compose)) >= 3
+    @test count(_ -> true, eachmatch(r"memory:\s*[0-9]+[mMgG]", prod_compose)) >= 3
+end
