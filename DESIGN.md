@@ -16,15 +16,19 @@ Core components:
 
 Accessibility:
 - WCAG 2.1 AA.
-- Semantic headings, labels, table captions, alert roles.
+- semantic headings, labels, table captions, alert roles.
 - Visible focus rings and keyboard navigation for menus, forms, dialogs, and approvals.
-- No color-only confidence or status signaling.
+- no color-only confidence or status signaling.
 
 Interaction states:
 loading, empty, invalid import, solver running, solver failed, infeasible model, recommendation expired, adapter disabled, adapter failed, permission denied.
 
 Performance:
-- Lazy-load charting only on simulation detail routes.
+- lazy-load charting only on simulation detail routes.
 - Dashboard LCP target under 2.5s.
+
+Privacy and consent:
+- uploaded CSV data stays local to tenant boundaries.
+- Exports and integration sends require explicit user action before data leaves the tenant workflow.
 
 Required evidence: MOBILE_VIEWPORT_PASS, ACCESSIBILITY_AA_PASS, FRONTEND_IMPECCABLE_AUDIT_PASS, BUNDLE_DYNAMIC_IMPORT_AUDIT_PASS.

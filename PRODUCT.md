@@ -2,7 +2,7 @@
 
 Users: supply-chain planners, distributors, retailers, operations admins, read-only stakeholders.
 
-Positioning: dense, explainable allocation planning console. The product helps decide where scarce inventory should sit before demand arrives, with CSV/API inputs and optional ecosystem adapters.
+Positioning: dense, explainable operations console for allocation planning. The product helps decide where scarce inventory should sit before demand arrives, with tenant-scoped CSV/API inputs and optional ecosystem adapters.
 
 Product personality: operational, precise, trustworthy, low decoration, fast path to scenario comparison and approval decisions.
 

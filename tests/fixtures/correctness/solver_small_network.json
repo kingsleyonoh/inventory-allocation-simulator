@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "derivedFrom": "docs/inventory-allocation-simulator_prd.md §5.4",
+  "policy": {
+    "objective": "minimize_stockout_cost",
+    "service_level_target": 0.95,
+    "planning_horizon_days": 14,
+    "allow_cross_region": true
+  },
+  "warehouses": [
+    { "code": "WH-SURPLUS", "region": "North", "capacity_units": 500 },
+    { "code": "WH-NEED", "region": "South", "capacity_units": 500 }
+  ],
+  "sku": { "sku_code": "SKU-FAST", "unit_margin_cents": 900, "stockout_cost_cents": 1200, "holding_cost_cents": 20 },
+  "inventory": [
+    { "warehouse_code": "WH-SURPLUS", "on_hand_units": 100, "safety_stock_units": 40 },
+    { "warehouse_code": "WH-NEED", "on_hand_units": 10, "safety_stock_units": 20 }
+  ],
+  "lane": { "from": "WH-SURPLUS", "to": "WH-NEED", "lead_time_days": 2, "cost_per_unit_cents": 150, "capacity_units_day": 20 },
+  "expectedRecommendation": {
+    "from": "WH-SURPLUS",
+    "to": "WH-NEED",
+    "sku_code": "SKU-FAST",
+    "transfer_units": 30,
+    "binding_constraints": ["lane_capacity", "receiver_service_level"],
+    "net_value_cents": 31500
+  }
+}

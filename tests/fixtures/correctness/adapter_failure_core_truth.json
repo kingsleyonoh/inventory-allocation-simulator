@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "derivedFrom": "docs/inventory-allocation-simulator_prd.md §5.7",
+  "coreRecord": {
+    "recommendation_id": "44444444-4444-4444-8444-444444444444",
+    "starting_status": "approved",
+    "decision": "approved"
+  },
+  "adapters": [
+    { "target": "notification_hub", "enabled": false, "expectedOutboxStatus": "not_created", "expectedRecommendationStatus": "approved" },
+    { "target": "notification_hub", "enabled": true, "response": "500", "expectedOutboxStatus": "failed", "expectedRecommendationStatus": "approved" },
+    { "target": "workflow_engine", "enabled": true, "response": "timeout", "expectedOutboxStatus": "dead_letter_after_retries", "expectedRecommendationStatus": "approved" }
+  ],
+  "internalOnlyValues": ["NOTIFICATION_HUB_API_KEY", "WORKFLOW_ENGINE_API_KEY", "retry_counter"]
+}

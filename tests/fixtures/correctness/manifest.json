@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/inventory-allocation-simulator_prd.md §15 Success Criteria",
+  "scenarios": [
+    {
+      "id": "imports_mixed_valid_invalid_rows",
+      "module": "imports",
+      "businessRule": "CSV imports report row-level errors and preserve enough artifact data for queued retry; all-or-nothing mode must not partially commit invalid files.",
+      "sourceOfTruth": "docs/inventory-allocation-simulator_prd.md §5.2 Data Import Module / §15",
+      "observablePaths": ["POST /api/imports", "GET /api/imports/:id", "simulation_runs.input_snapshot"],
+      "failureModeProtected": "Unknown SKU or negative inventory silently commits, or partial commit occurs while IMPORT_PARTIAL_COMMIT=false.",
+      "fixtures": ["tests/fixtures/correctness/import_mixed_rows.json"]
+    },
+    {
+      "id": "forecast_stockout_history_not_low_demand",
+      "module": "forecasting",
+      "businessRule": "Stockout periods inflate uncertainty and must not be treated as evidence of low demand.",
+      "sourceOfTruth": "docs/inventory-allocation-simulator_prd.md §5.3 Demand Forecast Module / §15",
+      "observablePaths": ["forecast preview", "demand_scenarios.demand_payload", "recommendation.explanation"],
+      "failureModeProtected": "A SKU with zero observed sales during stockout receives a depressed demand forecast.",
+      "fixtures": ["tests/fixtures/correctness/forecast_stockout_history.json"]
+    },
+    {
+      "id": "solver_known_optimum_small_network",
+      "module": "solver",
+      "businessRule": "A deterministic small network with known optimum produces the expected transfer plan and explanation.",
+      "sourceOfTruth": "docs/inventory-allocation-simulator_prd.md §5.4 Allocation Solver Module / §15",
+      "observablePaths": ["allocation_recommendations", "solver diagnostics", "run detail UI"],
+      "failureModeProtected": "Solver returns any positive transfer that is feasible but not the known optimum.",
+      "fixtures": ["tests/fixtures/correctness/solver_small_network.json"]
+    },
+    {
+      "id": "recommendation_net_value_parity",
+      "module": "recommendations",
+      "businessRule": "Recommendation net value is identical across API, UI view model, CSV export, and notification payload.",
+      "sourceOfTruth": "docs/inventory-allocation-simulator_prd.md §5.4 Allocation Solver Module / §15",
+      "observablePaths": ["GET /api/recommendations/:id", "recommendation detail UI", "GET /api/recommendations/export.csv", "notification payload"],
+      "failureModeProtected": "UI shows positive net value while CSV or notification recomputes a different formula.",
+      "fixtures": ["tests/fixtures/correctness/recommendation_net_value_parity.json"]
+    },
+    {
+      "id": "notification_local_fallback_when_hub_disabled_or_failing",
+      "module": "notifications",
+      "businessRule": "High-urgency events create exactly one local unread notification even when Notification Hub is disabled or failing.",
+      "sourceOfTruth": "docs/inventory-allocation-simulator_prd.md §5.8 Local Notification Module / §15",
+      "observablePaths": ["dashboard notification bell", "GET /api/notifications", "ecosystem_outbox"],
+      "failureModeProtected": "Hub outage suppresses local notification or duplicate event IDs create duplicate unread alerts.",
+      "fixtures": ["tests/fixtures/correctness/notification_adapter_fallback.json"]
+    },
+    {
+      "id": "adapter_failure_does_not_mutate_core_truth",
+      "module": "integrations",
+      "businessRule": "Optional adapter failure dead-letters outbox work without changing core simulation or recommendation status.",
+      "sourceOfTruth": "docs/inventory-allocation-simulator_prd.md §5.7 Ecosystem Adapter Module / §15",
+      "observablePaths": ["ecosystem_outbox", "integration status UI", "recommendation status API"],
+      "failureModeProtected": "Workflow or Notification Hub timeout rolls back or changes the approved recommendation status.",
+      "fixtures": ["tests/fixtures/correctness/adapter_failure_core_truth.json"]
+    }
+  ]
+}

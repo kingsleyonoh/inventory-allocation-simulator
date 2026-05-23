@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "derivedFrom": "docs/inventory-allocation-simulator_prd.md §5.4 and §15",
+  "canonicalFormula": "net_value_cents = expected_margin_gain_cents + expected_stockout_reduction_units * stockout_cost_cents - transfer_cost_cents - holding_cost_cents",
+  "inputs": {
+    "expected_margin_gain_cents": 9000,
+    "expected_stockout_reduction_units": 30,
+    "stockout_cost_cents": 1200,
+    "transfer_cost_cents": 4500,
+    "holding_cost_cents": 9000
+  },
+  "expectedNetValueCents": 31500,
+  "paritySurfaces": [
+    "api.recommendation.net_value_cents",
+    "ui.view_model.net_value_cents",
+    "csv_export.net_value_cents",
+    "notification.payload.recommendation.net_value_cents"
+  ],
+  "internalOnlyValues": ["solver_variable_name", "raw_constraint_id"]
+}

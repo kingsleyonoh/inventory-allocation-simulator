@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "derivedFrom": "docs/inventory-allocation-simulator_prd.md §5.8",
+  "event": {
+    "event_type": "simulation.failed",
+    "event_id": "sim-failed-2026-05-23-001",
+    "severity": "critical",
+    "source_record_type": "simulation_run",
+    "source_record_id": "33333333-3333-4333-8333-333333333333"
+  },
+  "cases": [
+    { "name": "hub_disabled", "NOTIFICATION_HUB_ENABLED": false, "expectedLocalUnreadRows": 1, "expectedOutboxRows": 0, "coreRunStatus": "failed" },
+    { "name": "hub_timeout", "NOTIFICATION_HUB_ENABLED": true, "hubResponse": "timeout", "expectedLocalUnreadRows": 1, "expectedOutboxRows": 1, "expectedOutboxStatus": "failed", "coreRunStatus": "failed" },
+    { "name": "duplicate_event", "repeatEventId": true, "expectedLocalUnreadRows": 1, "idempotencyKey": "tenant_id:event_id" }
+  ]
+}
