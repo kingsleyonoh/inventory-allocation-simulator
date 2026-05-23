@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS transfer_lanes;
+DROP TABLE IF EXISTS demand_history;
+DROP TABLE IF EXISTS inventory_positions;
+DROP TABLE IF EXISTS skus;
+DROP TABLE IF EXISTS warehouses;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS tenants;
