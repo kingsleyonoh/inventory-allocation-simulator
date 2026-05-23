@@ -1,0 +1,6 @@
+warehouse_code,sku_code,period_start,period_end,demand_units,lost_sales_units,source
+WH_EAST,SKU_WIDGET,2026-04-01,2026-04-07,42,0,csv
+WH_EAST,SKU_WIDGET,2026-04-08,2026-04-14,47,0,csv
+WH_WEST,SKU_WIDGET,2026-04-01,2026-04-07,65,8,csv
+WH_WEST,SKU_WIDGET,2026-04-08,2026-04-14,70,12,csv
+WH_WEST,SKU_GADGET,2026-04-01,2026-04-07,30,0,csv

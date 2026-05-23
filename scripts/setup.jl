@@ -1,0 +1,3 @@
+using InventoryAllocationSimulator
+
+exit(InventoryAllocationSimulator.run_setup_cli(ARGS))

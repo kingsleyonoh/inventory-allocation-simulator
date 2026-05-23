@@ -13,6 +13,10 @@ end
 
 @testset "Inventory Allocation Simulator" begin
     include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_project_scaffold.jl"))
+    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_config_and_wiring.jl"))
+    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_first_run_setup.jl"))
+    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_demo_seed.jl"))
+    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_security_contract.jl"))
     if isempty(requested) || "aqua" in requested
         @testset "Aqua quality checks" begin
             Aqua.test_all(InventoryAllocationSimulator; stale_deps = false)

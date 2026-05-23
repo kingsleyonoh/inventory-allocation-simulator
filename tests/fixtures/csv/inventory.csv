@@ -1,0 +1,4 @@
+warehouse_code,sku_code,on_hand_units,reserved_units,inbound_units,safety_stock_units,as_of,source
+WH_EAST,SKU_WIDGET,150,10,25,40,2026-05-01T00:00:00,manual
+WH_WEST,SKU_WIDGET,20,5,0,30,2026-05-01T00:00:00,manual
+WH_WEST,SKU_GADGET,120,0,10,25,2026-05-01T00:00:00,manual

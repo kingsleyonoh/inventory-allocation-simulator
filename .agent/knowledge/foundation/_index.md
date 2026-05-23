@@ -7,6 +7,8 @@
 | File | Summary |
 |------|---------|
 | `EXAMPLE.md` | Template showing the expected shape — delete once a real foundation primitive exists. |
+| `core-config-loading.md` | Typed environment configuration loader and validation contract for server, CLI, and services. |
+| `service-dependency-injection.md` | `AppServices` container wiring for DB, Redis, DuckDB, jobs, and observability dependencies. |
 
 ## What belongs here
 

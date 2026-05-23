@@ -1,0 +1,4 @@
+code,name,region,capacity_units,handling_cost_cents
+WH_EAST,East DC,East,10000,25
+WH_WEST,West DC,West,8000,30
+WH_CENTRAL,Central Overflow,Central,5000,20

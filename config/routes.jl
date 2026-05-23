@@ -1,9 +1,22 @@
 using Genie.Router
+using JSON3
 
-function register_routes!()
+struct RouteDefinition
+    method::Symbol
+    path::String
+    name::String
+end
+
+function route_definitions()::Vector{RouteDefinition}
+    return [RouteDefinition(:GET, "/health", "health")]
+end
+
+health_response() = (status = "ok", service = "inventory-allocation-simulator")
+
+function register_routes!(services::Union{Nothing,AppServices} = nothing)
     route("/health") do
-        "OK"
+        JSON3.write(health_response())
     end
 
-    return nothing
+    return route_definitions()
 end

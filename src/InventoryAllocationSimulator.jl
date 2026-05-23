@@ -2,30 +2,33 @@ module InventoryAllocationSimulator
 
 using Genie
 
-export main, run_server!, register_routes!, parse_port
-
-include("../config/routes.jl")
-
 const DEFAULT_HOST = "0.0.0.0"
 const DEFAULT_PORT = 8000
 
-function parse_port(value::AbstractString)::Int
-    port = tryparse(Int, value)
-    if port === nothing || port < 1 || port > 65535
-        throw(ArgumentError("APP_PORT must be an integer from 1 to 65535"))
-    end
-    return port
-end
+include("../config/app.jl")
+include("db/connection.jl")
+include("jobs/worker.jl")
+include("observability/logging.jl")
+include("services.jl")
+include("tenant/bootstrap.jl")
+include("imports/demo_seed.jl")
+include("../config/routes.jl")
 
-function run_server!(; host::AbstractString = get(ENV, "APP_HOST", DEFAULT_HOST),
-                     port::Int = parse_port(get(ENV, "APP_PORT", string(DEFAULT_PORT))),
-                     async::Bool = false)
-    register_routes!()
-    Genie.up(port, host; async = async)
-    return nothing
+export AppConfig, AppServices, SetupResult
+export load_config, load_env_file!, project_root, parse_port
+export build_services, run_server!, main, register_routes!, route_definitions, health_response
+export first_run_setup!, generate_api_key, hash_api_key, AbstractSetupStore, count_tenants, insert_tenant!, insert_admin_user!
+export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
+
+function run_server!(; config::AppConfig = load_config(ENV), async::Bool = false)
+    services = build_services(config)
+    register_routes!(services)
+    Genie.up(config.app.port, config.app.host; async = async)
+    return services
 end
 
 function main()
+    load_env_file!()
     run_server!()
     return nothing
 end

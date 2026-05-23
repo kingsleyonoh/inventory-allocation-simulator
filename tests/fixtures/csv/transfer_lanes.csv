@@ -1,0 +1,4 @@
+from_warehouse_code,to_warehouse_code,lead_time_days,cost_per_unit_cents,capacity_units_day
+WH_EAST,WH_WEST,3,150,500
+WH_WEST,WH_EAST,3,150,500
+WH_CENTRAL,WH_WEST,2,100,300

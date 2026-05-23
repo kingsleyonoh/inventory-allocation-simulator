@@ -1,0 +1,3 @@
+using InventoryAllocationSimulator
+
+exit(InventoryAllocationSimulator.run_seed_demo_cli(ARGS))

@@ -2,7 +2,7 @@
 
 julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "897efd914f2364f5bc2b214e547f848705b2fad3"
+project_hash = "2d83b7e3f1b36b07b8ef9a7c90f343a5e247f6f8"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -372,7 +372,7 @@ uuid = "d8418881-c3e1-53bb-8760-2df7ec849ed5"
 version = "1.11.0"
 
 [[deps.InventoryAllocationSimulator]]
-deps = ["Aqua", "Dates", "Distributions", "DuckDB", "Genie", "HTTP", "HiGHS", "JSON3", "JuMP", "LibPQ", "Redis", "StatsBase", "TOML", "UUIDs", "YAML"]
+deps = ["Aqua", "Dates", "Distributions", "DuckDB", "Genie", "HTTP", "HiGHS", "JSON3", "JuMP", "LibPQ", "Random", "Redis", "SHA", "StatsBase", "TOML", "UUIDs", "YAML"]
 path = "."
 uuid = "5411b9b1-8a41-4d2d-9f64-f9f3cde15f73"
 version = "0.1.0"
