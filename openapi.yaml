@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: Inventory Allocation Simulator API
+  version: 0.1.0
+paths:
+  /api/tenants/register:
+    post:
+      summary: Register tenant when self-registration is enabled
+      responses: { '200': { description: OK } }
+  /tenants/me:
+    get:
+      summary: Current tenant profile
+      responses: { '200': { description: OK } }
+  /api/warehouses:
+    get:
+      summary: List warehouses
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create warehouse
+      responses: { '201': { description: Created } }
+  /api/skus:
+    get:
+      summary: List SKUs
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create SKU
+      responses: { '201': { description: Created } }
+  /api/imports:
+    post:
+      summary: Upload planning CSV import
+      responses: { '202': { description: Queued } }
+  /api/simulations:
+    get:
+      summary: List simulation runs
+      responses: { '200': { description: OK } }
+    post:
+      summary: Start simulation run
+      responses: { '202': { description: Queued } }
+  /api/recommendations/export.csv:
+    get:
+      summary: Export recommendations as CSV
+      responses: { '200': { description: CSV } }
+  /health:
+    get:
+      summary: Process health
+      responses: { '200': { description: OK } }
+  /health/ready:
+    get:
+      summary: Readiness without optional adapter dependency
+      responses: { '200': { description: OK } }
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses: { '200': { description: OK } }

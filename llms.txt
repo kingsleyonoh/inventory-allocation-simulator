@@ -1,0 +1,21 @@
+# Inventory Allocation Simulator
+
+Inventory Allocation Simulator is a multi-tenant supply-chain planning app for deciding where scarce inventory should sit before demand arrives.
+
+## Architecture
+Julia 1.11, Genie.jl, PostgreSQL 16, Redis 7, DuckDB, JuMP/HiGHS, server-rendered HTMX/Tailwind.
+
+## API Surface
+Tenant, warehouse, SKU, inventory, demand-history, imports, lanes, policies, simulations, recommendations, users, settings, notifications, integrations, health, readiness, and metrics endpoints are defined in `docs/inventory-allocation-simulator_prd.md` §8b.
+
+## Integrations
+Optional Delivery Tracking Gateway, Event-Driven Notification Hub, and Workflow Automation Engine. CSV import/export is required and standalone.
+
+## Install
+`julia --project -e 'using Pkg; Pkg.instantiate()'`
+
+## Develop
+`docker compose up -d postgres redis` then `julia --project src/Main.jl`.
+
+## Test
+`julia --project -e 'using Pkg; Pkg.test()'`

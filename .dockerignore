@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.yolo/worktrees
+.yolo/pi-sessions
+.yolo/subagent-runs
+.yolo/events
+tools/klevar-yolo-runtime/node_modules
+tools/klevar-yolo-runtime/dist
+node_modules
+playwright-report
+test-results
+coverage
+data
+*.log

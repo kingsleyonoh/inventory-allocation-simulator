@@ -1,0 +1,14 @@
+{
+  "name": "inventory-allocation-simulator",
+  "description": "MCP metadata for Inventory Allocation Simulator API operations.",
+  "tools": [
+    { "name": "get_tenant", "path": "/tenants/me", "method": "GET" },
+    { "name": "list_warehouses", "path": "/api/warehouses", "method": "GET" },
+    { "name": "create_import", "path": "/api/imports", "method": "POST" },
+    { "name": "create_simulation", "path": "/api/simulations", "method": "POST" },
+    { "name": "get_simulation", "path": "/api/simulations/:id", "method": "GET" },
+    { "name": "approve_recommendation", "path": "/api/recommendations/:id/approve", "method": "POST" },
+    { "name": "export_recommendations", "path": "/api/recommendations/export.csv", "method": "GET" },
+    { "name": "integration_status", "path": "/api/integrations/status", "method": "GET" }
+  ]
+}
