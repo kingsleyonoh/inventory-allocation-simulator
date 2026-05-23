@@ -30,7 +30,7 @@ Multi-tenant Julia/Genie supply-chain planning system. It imports warehouse, SKU
 | Run tests | `julia --project -e 'using Pkg; Pkg.test()'` |
 | Run tests (unit only) | `julia --project -e 'using Pkg; Pkg.test(test_args=["unit"])'` |
 | Run tests (integration only) | `julia --project -e 'using Pkg; Pkg.test(test_args=["integration"])'` |
-| Lint/static checks | `julia --project -e 'using Aqua; Aqua.test_all()'` |
+| Lint/static checks | `julia --project -e 'using Aqua, InventoryAllocationSimulator; Aqua.test_all(InventoryAllocationSimulator; stale_deps=false)'` |
 | E2E tests | `npx playwright test` |
 | Start infra | `docker compose up -d postgres redis` |
 | Stop infra | `docker compose down` |

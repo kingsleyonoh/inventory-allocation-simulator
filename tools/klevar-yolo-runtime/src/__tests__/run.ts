@@ -33,6 +33,7 @@ import { defaultConfig, loadConfig } from "../config.js";
 import { syncLocalOnlyFilesToRoot, syncWorktreeChangesToRoot } from "../worktree-sync.js";
 import { isTransientRemoveError, pruneSuccessfulWorktrees } from "../worktree-retention.js";
 import { runPolicyConsistencyTests } from "./policy-consistency.js";
+import { repairCommittedCloseoutGate, verifyPreviousBatchGates } from "../gates.js";
 import { readPromptTemplate } from "../prompt-source.js";
 import { cleanBatch, normalizeBatch, rollbackLast, undoLast } from "../recovery.js";
 import { loadClaims, markRuntimeClaim, prepareRuntimeClaim, validateClaims } from "../collaboration/claims.js";
@@ -1936,6 +1937,21 @@ test("runtime source keeps full and phase scopes as bounded iterative loops", as
   assert.match(source, /Full YOLO complete: no remaining items/);
   assert.match(source, /Phase scope complete/);
   assert.doesNotMatch(source, /maxIterations/);
+});
+
+test("runtime repairs missing closeout for committed manual batch evidence", async () => {
+  const dir = await tempDir();
+  await execCommand("git init && git config user.email test@example.com && git config user.name Test", dir, 30_000);
+  await mkdir(join(dir, ".yolo/batch-results"), { recursive: true });
+  await mkdir(join(dir, ".yolo/gates"), { recursive: true });
+  await writeFile(join(dir, ".yolo/batch-results/batch-003-implement.json"), JSON.stringify({ schemaVersion: 1, agent: "implement", batch: 3, status: "SUCCESS", itemsCompleted: [], filesChanged: [], flags: [] }));
+  await writeFile(join(dir, ".yolo/gates/e2e-batch-003.md"), "workflow: e2e\nresult: PASS\n");
+  await writeFile(join(dir, ".yolo/gates/journal-batch-003.md"), "workflow: journal\nresult: PASS\n");
+  await execCommand("git add . && git commit -m 'fix(yolo): complete batch 003 recovery'", dir, 30_000);
+  assert.equal(await repairCommittedCloseoutGate(dir, 3), true);
+  assert.equal(await pathExists(join(dir, ".yolo/gates/closeout-batch-003.md")), true);
+  assert.deepEqual(await verifyPreviousBatchGates(dir, 4), []);
+  await rm(dir, { recursive: true, force: true });
 });
 
 test("runtime blocks new scopes when previous batch artifacts lack closeout", async () => {

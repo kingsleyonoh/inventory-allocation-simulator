@@ -1,5 +1,5 @@
 # Julia
-Manifest.toml
+# Manifest.toml is tracked for reproducible application installs.
 .julia/
 *.ji
 *.cov
@@ -20,7 +20,10 @@ __pycache__/
 !.env.example
 
 # Runtime data
-/data/
+/data/*
+!/data/.gitkeep
+!/data/uploads/
+!/data/uploads/.gitkeep
 /tmp/
 *.log
 

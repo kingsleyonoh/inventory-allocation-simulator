@@ -3,7 +3,7 @@ import { buildBatchContextWithKnowledge } from "./context-builder.js";
 import { recordFailure, markReinforced } from "./failure-patterns.js";
 import { readPendingInbox, reconcileInbox } from "./inbox-router.js";
 import { routeInboxWithAi, writeInboxRouteGate } from "./inbox-ai-router.js";
-import { writeGate, writeRuntimeGates, verifyPreviousBatchGates } from "./gates.js";
+import { repairCommittedCloseoutGate, writeGate, writeRuntimeGates, verifyPreviousBatchGates } from "./gates.js";
 import { appendJournal } from "./journal.js";
 import { validateJournalContract } from "./journal-contract.js";
 import { isAuditItem, isMatrixCoverageAudit, isPhaseCloseout, parseProgress, selectBatch } from "./progress-parser.js";
@@ -239,8 +239,13 @@ async function continueYolo(cwd: string, config: RuntimeConfig, dryRun: boolean)
 async function findIncompleteBatch(cwd: string): Promise<number | null> {
   const resultNumbers = await listBatchNumbers(cwd, ".yolo/batch-results", /^batch-(\d+)-.+\.json$/);
   if (!resultNumbers.length) return null;
-  const closeoutNumbers = await listBatchNumbers(cwd, ".yolo/gates", /^closeout-batch-(\d+)\.md$/);
-  const maxCloseout = closeoutNumbers.length ? Math.max(...closeoutNumbers) : 0;
+  let closeoutNumbers = await listBatchNumbers(cwd, ".yolo/gates", /^closeout-batch-(\d+)\.md$/);
+  let maxCloseout = closeoutNumbers.length ? Math.max(...closeoutNumbers) : 0;
+  for (const number of resultNumbers.filter((value) => value > maxCloseout).sort((a, b) => a - b)) {
+    await repairCommittedCloseoutGate(cwd, number);
+  }
+  closeoutNumbers = await listBatchNumbers(cwd, ".yolo/gates", /^closeout-batch-(\d+)\.md$/);
+  maxCloseout = closeoutNumbers.length ? Math.max(...closeoutNumbers) : 0;
   const incomplete = resultNumbers.filter((number) => number > maxCloseout).sort((a, b) => a - b)[0];
   return incomplete ?? null;
 }

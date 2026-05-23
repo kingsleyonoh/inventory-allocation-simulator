@@ -9,13 +9,15 @@
 | File | Purpose |
 |------|---------|
 | `CODEBASE_CONTEXT.md` | Tech stack, schema, env vars, commands, project structure |
-| `CODING_STANDARDS.md` | Core AI discipline, git, file size limits, append-only files banned |
+| `CODING_STANDARDS.md` | Core workflow, git, domain-rule routing, file size limits |
+| `CODING_STANDARDS_DISCIPLINE.md` | Core AI discipline, no-scope-creep, no-workarounds, read/search rules, append-only files banned |
 | `CODING_STANDARDS_META.md` | Skill orchestration, PowerShell environment, git branching |
 | `CODING_STANDARDS_TESTING.md` | Core TDD workflow (RED/GREEN/REGRESSION), anti-cheat |
 | `CODING_STANDARDS_TESTING_LOGIC.md` | Business logic correctness, multi-tenant fixtures, edge cases, test modularity |
 | `CODING_STANDARDS_TESTING_LIVE.md` | Mock policy, component testing, in-process backend integration |
 | `CODING_STANDARDS_TESTING_E2E.md` | E2E testing over real HTTP |
-| `CODING_STANDARDS_DOMAIN.md` | Deployment, security, naming conventions |
+| `CODING_STANDARDS_DOMAIN.md` | Deployment, environment, production readiness, naming, logging, performance, code structure |
+| `CODING_STANDARDS_SECURITY.md` | Secrets, input validation, authz, SQL/data safety, multi-tenant config-driven surfaces |
 | `COLLABORATION_RULES.md` | Branch, claim, and AI-assisted contributor coordination rules |
 
 > **Split-file note:** If `CODEBASE_CONTEXT.md` exceeds 10K characters, it auto-splits into `CODEBASE_CONTEXT_SCHEMA.md` and/or `CODEBASE_CONTEXT_MODULES.md`. Read every `CODEBASE_CONTEXT*.md` file present in this directory.
