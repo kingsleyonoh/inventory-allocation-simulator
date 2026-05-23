@@ -10,6 +10,10 @@ ENV JULIA_PROJECT=/app \
     APP_HOST=0.0.0.0 \
     APP_PORT=8000
 COPY --from=deps /root/.julia /root/.julia
-COPY . .
+COPY Project.toml Manifest.toml* ./
+COPY config ./config
+COPY migrations ./migrations
+COPY scripts ./scripts
+COPY src ./src
 EXPOSE 8000
-CMD ["julia", "--project", "src/Main.jl"]
+CMD ["bash", "-lc", "julia --project scripts/migrate.jl up && julia --project src/Main.jl"]

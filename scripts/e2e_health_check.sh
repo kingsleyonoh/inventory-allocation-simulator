@@ -5,6 +5,7 @@ HOST="${APP_HOST:-127.0.0.1}"
 PORT="${APP_PORT:-8124}"
 BASE_URL="${PUBLIC_BASE_URL:-http://${HOST}:${PORT}}"
 HEALTH_URL="${BASE_URL%/}/health"
+HEALTH_DB_URL="${BASE_URL%/}/health/db"
 TIMEOUT_SECONDS="${E2E_HEALTH_TIMEOUT_SECONDS:-90}"
 SERVER_LOG="$(mktemp)"
 SERVER_PID=""
@@ -32,8 +33,14 @@ while (( SECONDS < end_time )); do
 
     if response="$(curl -fsS --max-time 2 "${HEALTH_URL}" 2>&1)"; then
         if [[ "${response}" == *'"status":"ok"'* && "${response}" == *'"service":"inventory-allocation-simulator"'* ]]; then
-            echo "${response}"
-            exit 0
+            db_response="$(curl -fsS --max-time 5 "${HEALTH_DB_URL}" 2>&1)"
+            if [[ "${db_response}" == *'"status":"ok"'* && "${db_response}" == *'"service":"postgresql"'* ]]; then
+                echo "${response}"
+                echo "${db_response}"
+                exit 0
+            fi
+            echo "Unexpected DB health response from ${HEALTH_DB_URL}: ${db_response}" >&2
+            exit 1
         fi
         echo "Unexpected health response from ${HEALTH_URL}: ${response}" >&2
         exit 1

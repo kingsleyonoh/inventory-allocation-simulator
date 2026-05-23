@@ -8,6 +8,8 @@
 |------|---------|
 | `EXAMPLE.md` | Template showing the expected shape — delete once a real foundation primitive exists. |
 | `core-config-loading.md` | Typed environment configuration loader and validation contract for server, CLI, and services. |
+| `db-migration-runner.md` | Ordered SQL migration discovery/execution contract and DB health readiness integration. |
+| `runtime-lifecycle.md` | Coordinated shutdown contract for Genie HTTP, background workers, and service resources. |
 | `service-dependency-injection.md` | `AppServices` container wiring for DB, Redis, DuckDB, jobs, and observability dependencies. |
 
 ## What belongs here

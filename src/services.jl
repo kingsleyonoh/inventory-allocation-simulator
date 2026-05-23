@@ -17,3 +17,21 @@ function build_services(config::AppConfig)::AppServices
         ObservabilityService(config.app.log_level, config.observability.metrics_token, config.observability.sentry_dsn),
     )
 end
+
+function shutdown!(services::AppServices; stop_http::Bool = true)::Nothing
+    stop!(services.jobs)
+    close!(services.db)
+    if stop_http
+        try
+            Genie.down(; force = false)
+        catch err
+            @debug "Genie server shutdown skipped" exception = (err, catch_backtrace())
+        end
+    end
+    return nothing
+end
+
+function install_shutdown_hook!(services::AppServices)::AppServices
+    atexit(() -> shutdown!(services; stop_http = true))
+    return services
+end

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: inventory_allocation
+          POSTGRES_USER: inventory
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD || 'placeholder-password' }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U inventory -d inventory_allocation"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: test
+      APP_HOST: 127.0.0.1
+      APP_PORT: 8124
+      PUBLIC_BASE_URL: http://127.0.0.1:8124
+      DATABASE_URL: postgres://inventory:${{ secrets.CI_POSTGRES_PASSWORD || 'placeholder-password' }}@localhost:5432/inventory_allocation
+      REDIS_URL: redis://localhost:6379/0
+      DUCKDB_PATH: ./data/ci-backtests.duckdb
+      SESSION_SECRET: ci-session-secret-placeholder
+      METRICS_TOKEN: ci-metrics-token-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+      - name: Instantiate Julia dependencies
+        run: julia --project -e 'using Pkg; Pkg.instantiate()'
+      - name: Run database migrations
+        run: julia --project scripts/migrate.jl up
+      - name: Run Julia test suite
+        run: julia --project -e 'using Pkg; Pkg.test()'
+      - name: Run Aqua quality checks
+        run: julia --project -e 'using Aqua, InventoryAllocationSimulator; Aqua.test_all(InventoryAllocationSimulator; stale_deps=false)'
+      - name: Run Playwright smoke when configured
+        run: |
+          if [ -f playwright.config.ts ] || [ -f playwright.config.js ]; then
+            npx playwright test
+          else
+            bash scripts/e2e_health_check.sh
+          fi
+      - name: Secret scan
+        run: bash scripts/scan-secrets.sh --mode tracked

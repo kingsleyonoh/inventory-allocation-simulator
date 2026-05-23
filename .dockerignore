@@ -1,5 +1,7 @@
 .git
 .gitignore
+.agent
+.yolo
 .env
 .env.*
 !.env.example

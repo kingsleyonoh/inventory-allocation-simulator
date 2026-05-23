@@ -5,18 +5,19 @@ using Aqua
 const TEST_ROOT = @__DIR__
 const requested = Set(string.(ARGS))
 
-function include_if_requested(kind::String, path::String)
+function include_tree(kind::String, path::String)
     if isempty(requested) || kind in requested
-        include(path)
+        for (root, _dirs, files) in walkdir(path)
+            for file in sort(filter(name -> endswith(name, ".jl"), files))
+                include(joinpath(root, file))
+            end
+        end
     end
 end
 
 @testset "Inventory Allocation Simulator" begin
-    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_project_scaffold.jl"))
-    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_config_and_wiring.jl"))
-    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_first_run_setup.jl"))
-    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_demo_seed.jl"))
-    include_if_requested("unit", joinpath(TEST_ROOT, "unit", "setup", "test_security_contract.jl"))
+    include_tree("unit", joinpath(TEST_ROOT, "unit"))
+    include_tree("integration", joinpath(TEST_ROOT, "integration"))
     if isempty(requested) || "aqua" in requested
         @testset "Aqua quality checks" begin
             Aqua.test_all(InventoryAllocationSimulator; stale_deps = false)
