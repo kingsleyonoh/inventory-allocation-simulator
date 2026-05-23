@@ -114,36 +114,44 @@ function parse_port(value::AbstractString)::Int
     return _parse_int(String(value), "APP_PORT"; min = 1, max = 65535)
 end
 
-function load_config(env = ENV)::AppConfig
-    app = AppRuntimeConfig(
+function _load_runtime_config(env)::AppRuntimeConfig
+    return AppRuntimeConfig(
         _env_get(env, "APP_ENV", "development"),
         _env_get(env, "APP_HOST", DEFAULT_HOST),
         parse_port(_env_get(env, "APP_PORT", string(DEFAULT_PORT))),
         _env_get(env, "PUBLIC_BASE_URL", "http://localhost:8000"),
         _env_get(env, "LOG_LEVEL", "info"),
     )
+end
 
-    database = DatabaseConfig(
+function _load_database_config(env)::DatabaseConfig
+    return DatabaseConfig(
         _required(env, "DATABASE_URL"),
         _required(env, "REDIS_URL"),
         _required(env, "DUCKDB_PATH"),
     )
+end
 
-    tenant = TenantConfig(
+function _load_tenant_config(env)::TenantConfig
+    return TenantConfig(
         _parse_bool(_env_get(env, "SELF_REGISTRATION_ENABLED", "true"), "SELF_REGISTRATION_ENABLED"),
         _env_get(env, "API_KEY_PREFIX", "ias_live"),
         _env_get(env, "DEFAULT_TENANT_NAME", "Default"),
         _env_get(env, "DEFAULT_ADMIN_EMAIL", "admin@example.com"),
         _required(env, "SESSION_SECRET"),
     )
+end
 
-    imports = ImportConfig(
+function _load_import_config(env)::ImportConfig
+    return ImportConfig(
         _parse_int(_env_get(env, "MAX_IMPORT_MB", "25"), "MAX_IMPORT_MB"; min = 1, max = 1024),
         _parse_bool(_env_get(env, "IMPORT_PARTIAL_COMMIT", "false"), "IMPORT_PARTIAL_COMMIT"),
         _env_get(env, "UPLOAD_STORAGE_PATH", "./data/uploads"),
     )
+end
 
-    simulation = SimulationConfig(
+function _load_simulation_config(env)::SimulationConfig
+    return SimulationConfig(
         _parse_int(_env_get(env, "DEFAULT_SCENARIO_COUNT", "100"), "DEFAULT_SCENARIO_COUNT"; min = 1, max = 10000),
         _parse_int(_env_get(env, "MIN_HISTORY_PERIODS", "8"), "MIN_HISTORY_PERIODS"; min = 1, max = 10000),
         _parse_int(_env_get(env, "FORECAST_LOOKBACK_DAYS", "180"), "FORECAST_LOOKBACK_DAYS"; min = 1, max = 3650),
@@ -155,8 +163,10 @@ function load_config(env = ENV)::AppConfig
         _parse_int(_env_get(env, "RECOMMENDATION_EXPIRY_DAYS", "7"), "RECOMMENDATION_EXPIRY_DAYS"; min = 1, max = 3650),
         _parse_bool(_env_get(env, "REQUIRE_REJECTION_REASON", "true"), "REQUIRE_REJECTION_REASON"),
     )
+end
 
-    integrations = IntegrationConfig(
+function _load_integration_config(env)::IntegrationConfig
+    return IntegrationConfig(
         _parse_bool(_env_get(env, "NOTIFICATION_HUB_ENABLED", "false"), "NOTIFICATION_HUB_ENABLED"),
         _env_get(env, "NOTIFICATION_HUB_URL", ""),
         _env_get(env, "NOTIFICATION_HUB_API_KEY", ""),
@@ -169,13 +179,25 @@ function load_config(env = ENV)::AppConfig
         _env_get(env, "DELIVERY_GATEWAY_API_KEY", ""),
         _env_get(env, "DELIVERY_REDIS_URL", ""),
     )
+end
 
-    observability = ObservabilityConfig(
+function _load_observability_config(env)::ObservabilityConfig
+    return ObservabilityConfig(
         _env_get(env, "SENTRY_DSN", ""),
         _required(env, "METRICS_TOKEN"),
     )
+end
 
-    return AppConfig(app, database, tenant, imports, simulation, integrations, observability)
+function load_config(env = ENV)::AppConfig
+    return AppConfig(
+        _load_runtime_config(env),
+        _load_database_config(env),
+        _load_tenant_config(env),
+        _load_import_config(env),
+        _load_simulation_config(env),
+        _load_integration_config(env),
+        _load_observability_config(env),
+    )
 end
 
 function load_env_file!(path::AbstractString = joinpath(project_root(), ".env"); override::Bool = false)::Int
