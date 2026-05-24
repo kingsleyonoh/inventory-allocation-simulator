@@ -99,6 +99,7 @@ end
     @test services.jobs.configured == true
     @test services.observability.log_level == config.app.log_level
     @test services.observability.metrics_token == config.observability.metrics_token
+    @test services.rate_limiter isa InventoryAllocationSimulator.MemoryRateLimiter
 end
 
 @testset "Route registration exposes production health route through the registry" begin

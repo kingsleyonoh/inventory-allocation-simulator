@@ -12,6 +12,13 @@ function route_definitions()::Vector{RouteDefinition}
     return [
         RouteDefinition(:GET, "/health", "health"),
         RouteDefinition(:GET, "/health/db", "health_db"),
+        RouteDefinition(:POST, "/api/tenants/register", "tenant_register"),
+        RouteDefinition(:GET, "/tenants/me", "tenant_me"),
+        RouteDefinition(:GET, "/api/settings/tenant", "tenant_settings_read"),
+        RouteDefinition(:PATCH, "/api/settings/tenant", "tenant_settings_update"),
+        RouteDefinition(:GET, "/api/users", "users_list"),
+        RouteDefinition(:POST, "/api/users", "users_create"),
+        RouteDefinition(:PATCH, "/api/users/:id", "users_update"),
     ]
 end
 
@@ -54,6 +61,30 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
             db_health_response(services)
         end
         respond(JSON3.write(response), :json, response.status == "ok" ? 200 : 503)
+    end
+
+    if services !== nothing
+        route("/api/tenants/register"; method = POST) do
+            handle_register_tenant(services)
+        end
+        route("/tenants/me"; method = GET) do
+            handle_tenant_me(services)
+        end
+        route("/api/settings/tenant"; method = GET) do
+            handle_get_tenant_settings(services)
+        end
+        route("/api/settings/tenant"; method = PATCH) do
+            handle_update_tenant_settings(services)
+        end
+        route("/api/users"; method = GET) do
+            handle_list_users(services)
+        end
+        route("/api/users"; method = POST) do
+            handle_create_user(services)
+        end
+        route("/api/users/:id"; method = PATCH) do
+            handle_update_user(services)
+        end
     end
 
     return route_definitions()

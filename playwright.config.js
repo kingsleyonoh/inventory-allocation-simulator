@@ -29,6 +29,7 @@ module.exports = {
       DUCKDB_PATH: process.env.DUCKDB_PATH || './data/e2e-backtests.duckdb',
       SESSION_SECRET: process.env.SESSION_SECRET || 'e2e-session-secret-placeholder',
       METRICS_TOKEN: process.env.METRICS_TOKEN || 'e2e-metrics-token-placeholder',
+      SELF_REGISTRATION_ENABLED: process.env.SELF_REGISTRATION_ENABLED || 'false',
     },
   },
 };

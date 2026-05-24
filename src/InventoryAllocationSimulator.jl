@@ -16,9 +16,12 @@ include("web/pagination.jl")
 include("web/rate_limit.jl")
 include("tenant/bootstrap.jl")
 include("tenant/auth.jl")
+include("tenant/authz.jl")
+include("tenant/admin_api.jl")
 include("jobs/worker.jl")
 include("observability/logging.jl")
 include("services.jl")
+include("web/controllers/tenant_admin_controller.jl")
 include("imports/demo_seed.jl")
 include("../config/routes.jl")
 
@@ -34,6 +37,9 @@ export RateLimitPolicy, RateLimitDecision, MemoryRateLimiter, check_rate_limit!,
 export first_run_setup!, generate_api_key, hash_api_key, AbstractSetupStore, count_tenants, insert_tenant!, insert_admin_user!
 export AbstractAuthStore, AuthError, TenantAuthRecord, SessionAuthRecord, AuthRequest
 export signed_session_cookie, verify_session_cookie, resolve_tenant_context, lookup_tenant_by_api_key_hash, lookup_session_record
+export AuthzError, AuthzPolicy, AuthorizationRegistry, load_authz_registry, default_authz_registry, policy_key, authorize!
+export AbstractTenantAdminStore, MemoryTenantAdminStore, SqlTenantAdminStore
+export register_tenant!, get_tenant_profile, update_tenant_settings!, list_users, create_user!, update_user!
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli

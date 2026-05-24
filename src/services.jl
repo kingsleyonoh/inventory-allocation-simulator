@@ -5,6 +5,7 @@ struct AppServices
     analytics::AnalyticsService
     jobs::JobService
     observability::ObservabilityService
+    rate_limiter::MemoryRateLimiter
 end
 
 function build_services(config::AppConfig)::AppServices
@@ -15,6 +16,7 @@ function build_services(config::AppConfig)::AppServices
         AnalyticsService(config.database.duckdb_path),
         build_job_service(),
         ObservabilityService(config.app.log_level, config.observability.metrics_token, config.observability.sentry_dsn),
+        MemoryRateLimiter(),
     )
 end
 

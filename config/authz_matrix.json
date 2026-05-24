@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/inventory-allocation-simulator_prd.md §2b Roles × Resource Actions",
+  "roles": ["admin", "planner", "viewer"],
+  "resourceActionGroups": [
+    { "resource": "tenant_settings", "action": "read", "label": "Tenant settings read" },
+    { "resource": "tenant_settings", "action": "write", "label": "Tenant settings write" },
+    { "resource": "user_api_key", "action": "manage", "label": "User/API-key manage" },
+    { "resource": "planning_data", "action": "read", "label": "Planning data read" },
+    { "resource": "planning_data", "action": "write_import", "label": "Planning data write/import" },
+    { "resource": "policy", "action": "manage", "label": "Policy manage" },
+    { "resource": "simulation", "action": "run_cancel", "label": "Simulation run/cancel" },
+    { "resource": "recommendation", "action": "decide_export", "label": "Recommendation decide/export" },
+    { "resource": "integration", "action": "configure", "label": "Integration configure" },
+    { "resource": "metrics_readiness", "action": "read", "label": "Metrics/readiness" }
+  ],
+  "policies": [
+    { "key": "admin:tenant_settings:read", "role": "admin", "resource": "tenant_settings", "action": "read", "allowed": true },
+    { "key": "admin:tenant_settings:write", "role": "admin", "resource": "tenant_settings", "action": "write", "allowed": true },
+    { "key": "admin:user_api_key:manage", "role": "admin", "resource": "user_api_key", "action": "manage", "allowed": true },
+    { "key": "admin:planning_data:read", "role": "admin", "resource": "planning_data", "action": "read", "allowed": true },
+    { "key": "admin:planning_data:write_import", "role": "admin", "resource": "planning_data", "action": "write_import", "allowed": true },
+    { "key": "admin:policy:manage", "role": "admin", "resource": "policy", "action": "manage", "allowed": true },
+    { "key": "admin:simulation:run_cancel", "role": "admin", "resource": "simulation", "action": "run_cancel", "allowed": true },
+    { "key": "admin:recommendation:decide_export", "role": "admin", "resource": "recommendation", "action": "decide_export", "allowed": true },
+    { "key": "admin:integration:configure", "role": "admin", "resource": "integration", "action": "configure", "allowed": true },
+    { "key": "admin:metrics_readiness:read", "role": "admin", "resource": "metrics_readiness", "action": "read", "allowed": true },
+
+    { "key": "planner:tenant_settings:read", "role": "planner", "resource": "tenant_settings", "action": "read", "allowed": true },
+    { "key": "planner:tenant_settings:write", "role": "planner", "resource": "tenant_settings", "action": "write", "allowed": false, "reason": "tenant identity/admin settings only" },
+    { "key": "planner:user_api_key:manage", "role": "planner", "resource": "user_api_key", "action": "manage", "allowed": false, "reason": "cannot create users or rotate tenant keys" },
+    { "key": "planner:planning_data:read", "role": "planner", "resource": "planning_data", "action": "read", "allowed": true },
+    { "key": "planner:planning_data:write_import", "role": "planner", "resource": "planning_data", "action": "write_import", "allowed": true },
+    { "key": "planner:policy:manage", "role": "planner", "resource": "policy", "action": "manage", "allowed": true },
+    { "key": "planner:simulation:run_cancel", "role": "planner", "resource": "simulation", "action": "run_cancel", "allowed": true },
+    { "key": "planner:recommendation:decide_export", "role": "planner", "resource": "recommendation", "action": "decide_export", "allowed": true },
+    { "key": "planner:integration:configure", "role": "planner", "resource": "integration", "action": "configure", "allowed": false, "reason": "adapters are admin-controlled" },
+    { "key": "planner:metrics_readiness:read", "role": "planner", "resource": "metrics_readiness", "action": "read", "allowed": true },
+
+    { "key": "viewer:tenant_settings:read", "role": "viewer", "resource": "tenant_settings", "action": "read", "allowed": true },
+    { "key": "viewer:tenant_settings:write", "role": "viewer", "resource": "tenant_settings", "action": "write", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:user_api_key:manage", "role": "viewer", "resource": "user_api_key", "action": "manage", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:planning_data:read", "role": "viewer", "resource": "planning_data", "action": "read", "allowed": true },
+    { "key": "viewer:planning_data:write_import", "role": "viewer", "resource": "planning_data", "action": "write_import", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:policy:manage", "role": "viewer", "resource": "policy", "action": "manage", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:simulation:run_cancel", "role": "viewer", "resource": "simulation", "action": "run_cancel", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:recommendation:decide_export", "role": "viewer", "resource": "recommendation", "action": "decide_export", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:integration:configure", "role": "viewer", "resource": "integration", "action": "configure", "allowed": false, "reason": "read-only role" },
+    { "key": "viewer:metrics_readiness:read", "role": "viewer", "resource": "metrics_readiness", "action": "read", "allowed": true }
+  ],
+  "failClosed": true
+}
