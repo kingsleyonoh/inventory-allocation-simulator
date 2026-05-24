@@ -14,6 +14,7 @@
 | `request-cached-helpers.md` | Request-scoped cache primitive for expensive per-tenant lookups and summary computations. |
 | `runtime-lifecycle.md` | Coordinated shutdown contract for Genie HTTP, background workers, and service resources. |
 | `service-dependency-injection.md` | `AppServices` container wiring for DB, Redis, DuckDB, jobs, and observability dependencies. |
+| `simulation-lifecycle.md` | Simulation run endpoints, frozen snapshots, stockout-aware forecasts, deterministic scenarios, worker locks, stale reaping, and replay contract. |
 | `tenant-admin-authz-api.md` | Tenant admin API authorization registry, fail-closed role/resource enforcement, tenant profile/settings, self-registration, and user management contracts. |
 
 ## What belongs here

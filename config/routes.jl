@@ -37,6 +37,10 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:POST, "/api/lanes", "lanes_create"),
         RouteDefinition(:GET, "/api/policies", "policies_list"),
         RouteDefinition(:POST, "/api/policies", "policies_create"),
+        RouteDefinition(:POST, "/api/simulations", "simulations_create"),
+        RouteDefinition(:GET, "/api/simulations", "simulations_list"),
+        RouteDefinition(:GET, "/api/simulations/:id", "simulations_get"),
+        RouteDefinition(:POST, "/api/simulations/:id/cancel", "simulations_cancel"),
         RouteDefinition(:POST, "/api/imports", "imports_create"),
         RouteDefinition(:GET, "/api/imports/:id", "imports_result"),
     ]
@@ -158,6 +162,18 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/api/policies"; method = POST) do
             handle_create_policy(services)
+        end
+        route("/api/simulations"; method = POST) do
+            handle_create_simulation(services)
+        end
+        route("/api/simulations"; method = GET) do
+            handle_list_simulations(services)
+        end
+        route("/api/simulations/:id"; method = GET) do
+            handle_get_simulation(services)
+        end
+        route("/api/simulations/:id/cancel"; method = POST) do
+            handle_cancel_simulation(services)
         end
         route("/api/imports"; method = POST) do
             handle_create_import(services)

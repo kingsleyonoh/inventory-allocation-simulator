@@ -11,6 +11,9 @@ mutable struct MemoryTenantAdminStore <: AbstractTenantAdminStore
     transfer_lanes::Dict{UUID,Dict{Symbol,Any}}
     allocation_policies::Dict{UUID,Dict{Symbol,Any}}
     import_jobs::Dict{UUID,Dict{Symbol,Any}}
+    simulation_runs::Dict{UUID,Dict{Symbol,Any}}
+    demand_scenarios::Dict{UUID,Dict{Symbol,Any}}
+    simulation_idempotency::Dict{Tuple{UUID,String},UUID}
 end
 
 function _record_map(records::AbstractVector)::Dict{UUID,Dict{Symbol,Any}}
@@ -31,6 +34,8 @@ function MemoryTenantAdminStore(
     transfer_lanes::AbstractVector = [],
     allocation_policies::AbstractVector = [],
     import_jobs::AbstractVector = [],
+    simulation_runs::AbstractVector = [],
+    demand_scenarios::AbstractVector = [],
 )::MemoryTenantAdminStore
     return MemoryTenantAdminStore(
         _record_map(tenants),
@@ -42,5 +47,8 @@ function MemoryTenantAdminStore(
         _record_map(transfer_lanes),
         _record_map(allocation_policies),
         _record_map(import_jobs),
+        _record_map(simulation_runs),
+        _record_map(demand_scenarios),
+        Dict{Tuple{UUID,String},UUID}(),
     )
 end

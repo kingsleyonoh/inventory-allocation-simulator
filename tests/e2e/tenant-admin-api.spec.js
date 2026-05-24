@@ -35,6 +35,10 @@ test.describe('tenant admin API routes over real HTTP', () => {
       ['post', '/api/lanes'],
       ['get', '/api/policies'],
       ['post', '/api/policies'],
+      ['post', '/api/simulations'],
+      ['get', '/api/simulations'],
+      ['get', '/api/simulations/00000000-0000-4000-8000-000000000000'],
+      ['post', '/api/simulations/00000000-0000-4000-8000-000000000000/cancel'],
       ['post', '/api/imports'],
       ['get', '/api/imports/00000000-0000-4000-8000-000000000000'],
     ];

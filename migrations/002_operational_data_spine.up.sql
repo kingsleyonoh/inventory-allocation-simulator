@@ -29,12 +29,14 @@ CREATE TABLE IF NOT EXISTS simulation_runs (
     completed_at TIMESTAMP NULL,
     error_message TEXT NULL,
     created_by_user_id UUID NULL REFERENCES users(id),
+    idempotency_key TEXT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS simulation_runs_tenant_status_created_idx ON simulation_runs (tenant_id, status, created_at);
 CREATE INDEX IF NOT EXISTS simulation_runs_tenant_policy_created_idx ON simulation_runs (tenant_id, policy_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS simulation_runs_tenant_idempotency_key_idx ON simulation_runs (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS demand_scenarios (
     id UUID PRIMARY KEY,

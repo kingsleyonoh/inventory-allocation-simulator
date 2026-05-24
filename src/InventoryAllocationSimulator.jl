@@ -20,12 +20,17 @@ include("tenant/authz.jl")
 include("tenant/admin_api.jl")
 include("planning/catalog.jl")
 include("planning/snapshots.jl")
+include("planning/forecasts.jl")
+include("planning/scenarios.jl")
+include("planning/simulations.jl")
 include("imports/importer.jl")
+include("jobs/locks.jl")
 include("jobs/worker.jl")
 include("observability/logging.jl")
 include("services.jl")
 include("web/controllers/tenant_admin_controller.jl")
 include("web/controllers/planning_catalog_controller.jl")
+include("web/controllers/simulation_controller.jl")
 include("imports/demo_seed.jl")
 include("../config/routes.jl")
 
@@ -48,7 +53,10 @@ export list_warehouses, get_warehouse, create_warehouse!, update_warehouse!, dea
 export list_skus, get_sku, create_sku!, update_sku!, deactivate_sku!
 export list_inventory_positions, update_inventory_position!, list_demand_history
 export list_transfer_lanes, create_transfer_lane!, list_allocation_policies, create_allocation_policy!
-export capture_simulation_input_snapshot
+export capture_simulation_input_snapshot, clean_demand_history, forecast_preview
+export create_simulation_run!, list_simulation_runs, get_simulation_run, cancel_simulation_run!
+export claim_next_simulation_run!, claim_next_simulation_run_for_system!, simulation_worker!, reap_stale_simulation_runs!, generate_demand_scenarios!
+export fetch_demand_history
 export create_import_job!, get_import_result, claim_next_import_job!, process_import_job!, import_job_worker!
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore

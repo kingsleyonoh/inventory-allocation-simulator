@@ -7,11 +7,13 @@ mutable struct JobService
     import_store::Union{Nothing,AbstractTenantAdminStore}
     import_config::Union{Nothing,AppConfig}
     import_contexts::Vector{TenantContext}
+    simulation_store::Union{Nothing,AbstractTenantAdminStore}
+    simulation_contexts::Vector{TenantContext}
     poll_interval_seconds::Float64
 end
 
 function build_job_service()::JobService
-    return JobService(true, ["import_job_worker", "simulation_worker", "outbox_dispatcher"], false, false, Task[], nothing, nothing, TenantContext[], 0.05)
+    return JobService(true, ["import_job_worker", "simulation_worker", "stale_run_reaper", "outbox_dispatcher"], false, false, Task[], nothing, nothing, TenantContext[], nothing, TenantContext[], 0.05)
 end
 
 function import_job_worker!(store::AbstractTenantAdminStore, config::AppConfig, ctx::TenantContext; worker_id::AbstractString = "import-worker")
@@ -42,6 +44,23 @@ function _import_worker(service::JobService)::Nothing
     return nothing
 end
 
+function _simulation_worker(service::JobService)::Nothing
+    while !service.shutdown_requested
+        if service.simulation_store isa SqlTenantAdminStore && service.import_config !== nothing
+            simulation_worker!(service.simulation_store, service.import_config; worker_id = "simulation-worker")
+            reap_stale_simulation_runs!(service.simulation_store, service.import_config)
+        elseif service.simulation_store !== nothing && service.import_config !== nothing
+            for ctx in service.simulation_contexts
+                service.shutdown_requested && break
+                simulation_worker!(service.simulation_store, ctx; worker_id = "simulation-worker")
+                reap_stale_simulation_runs!(service.simulation_store, ctx; stale_after_minutes = service.import_config.simulation.run_stale_after_minutes)
+            end
+        end
+        sleep(service.poll_interval_seconds)
+    end
+    return nothing
+end
+
 function _idle_worker(service::JobService)::Nothing
     while !service.shutdown_requested
         sleep(service.poll_interval_seconds)
@@ -55,17 +74,26 @@ function start!(
     import_store::Union{Nothing,AbstractTenantAdminStore} = nothing,
     import_config::Union{Nothing,AppConfig} = nothing,
     import_contexts::AbstractVector{TenantContext} = TenantContext[],
+    simulation_store::Union{Nothing,AbstractTenantAdminStore} = import_store,
+    simulation_contexts::AbstractVector{TenantContext} = import_contexts,
 )::JobService
     service.shutdown_requested = false
     service.running = true
     service.import_store = import_store
     service.import_config = import_config
     service.import_contexts = collect(import_contexts)
+    service.simulation_store = simulation_store
+    service.simulation_contexts = collect(simulation_contexts)
     empty!(service.worker_tasks)
     if import_store isa SqlTenantAdminStore && import_config !== nothing
         push!(service.worker_tasks, @async _import_worker(service))
     elseif import_store !== nothing && import_config !== nothing && !isempty(import_contexts)
         push!(service.worker_tasks, @async _import_worker(service))
+    end
+    if simulation_store isa SqlTenantAdminStore && import_config !== nothing
+        push!(service.worker_tasks, @async _simulation_worker(service))
+    elseif simulation_store !== nothing && import_config !== nothing && !isempty(simulation_contexts)
+        push!(service.worker_tasks, @async _simulation_worker(service))
     end
     for _ in 1:worker_count
         push!(service.worker_tasks, @async _idle_worker(service))
