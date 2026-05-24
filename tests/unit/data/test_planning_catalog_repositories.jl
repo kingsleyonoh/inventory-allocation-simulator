@@ -4,6 +4,19 @@ using JSON3
 using LibPQ
 using InventoryAllocationSimulator
 
+function _planning_catalog_source()::String
+    files = [
+        "catalog.jl",
+        "catalog_core.jl",
+        "catalog_responses.jl",
+        "catalog_services.jl",
+        "catalog_memory_store.jl",
+        "catalog_sql_master_store.jl",
+        "catalog_sql_operational_store.jl",
+    ]
+    return join((read(joinpath(project_root(), "src", "planning", file), String) for file in files), "\n")
+end
+
 function _catalog_function_block(source::AbstractString, signature::AbstractString, next_signature::AbstractString)::String
     start = findfirst(signature, source)
     stop = findfirst(next_signature, source)
@@ -157,7 +170,7 @@ end
 end
 
 @testset "SQL optional and nullable parameters use LibPQ NULL sentinel" begin
-    source = read(joinpath(project_root(), "src", "planning", "catalog.jl"), String)
+    source = _planning_catalog_source()
 
     @test InventoryAllocationSimulator._sql_null(nothing) === missing
     @test InventoryAllocationSimulator._sql_null("GB-SW") == "GB-SW"
@@ -175,7 +188,7 @@ end
 end
 
 @testset "Warehouse and SKU SQL repositories keep tenant predicates on every query" begin
-    source = read(joinpath(project_root(), "src", "planning", "catalog.jl"), String)
+    source = _planning_catalog_source()
     lowered = lowercase(replace(source, r"\s+" => " "))
 
     @test occursin(r"from warehouses .* where tenant_id", lowered)
@@ -188,7 +201,7 @@ end
 end
 
 @testset "SQL list filters are applied before pagination" begin
-    source = read(joinpath(project_root(), "src", "planning", "catalog.jl"), String)
+    source = _planning_catalog_source()
     warehouse_block = _catalog_function_block(
         source,
         "function fetch_warehouses(store::SqlTenantAdminStore",

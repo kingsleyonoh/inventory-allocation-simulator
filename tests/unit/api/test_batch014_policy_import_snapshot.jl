@@ -145,7 +145,16 @@ end
 
     validate_inventory = getfield(InventoryAllocationSimulator, Symbol("_validate_inventory_import_row"))
     with_transaction = getfield(InventoryAllocationSimulator, Symbol("_with_import_transaction!"))
-    importer_source = read(joinpath(project_root(), "src", "imports", "importer.jl"), String)
+    importer_files = [
+        "importer.jl",
+        "importer_core.jl",
+        "importer_lookup.jl",
+        "importer_inventory.jl",
+        "importer_validators.jl",
+        "importer_jobs.jl",
+        "importer_committers.jl",
+    ]
+    importer_source = join((read(joinpath(project_root(), "src", "imports", file), String) for file in importer_files), "\n")
     system_claim_name = Symbol("claim_next_import_job_for_system!")
     @test hasmethod(validate_inventory, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore, UUID, Int, Dict{String,String}})
     @test hasmethod(with_transaction, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore, Function})

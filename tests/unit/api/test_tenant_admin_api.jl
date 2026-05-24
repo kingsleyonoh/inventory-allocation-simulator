@@ -202,7 +202,16 @@ end
 
 @testset "SQL session lookup is backed by a production migration" begin
     migration = joinpath(project_root(), "migrations", "003_user_sessions.up.sql")
-    admin_api = read(joinpath(project_root(), "src", "tenant", "admin_api.jl"), String)
+    admin_files = [
+        "admin_api.jl",
+        "admin_store.jl",
+        "admin_helpers.jl",
+        "admin_auth_store.jl",
+        "admin_registration.jl",
+        "admin_settings.jl",
+        "admin_users.jl",
+    ]
+    admin_api = join((read(joinpath(project_root(), "src", "tenant", file), String) for file in admin_files), "\n")
 
     @test isfile(migration)
     sql = replace(lowercase(read(migration, String)), r"\s+" => " ")
