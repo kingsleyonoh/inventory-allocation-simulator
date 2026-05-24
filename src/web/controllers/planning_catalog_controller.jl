@@ -178,3 +178,69 @@ function handle_create_lane(services::AppServices)
         return _error_response(err)
     end
 end
+
+function handle_list_policies(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "GET", "/api/policies")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(list_allocation_policies(store, ctx; params = _query_params_dict()))
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_create_policy(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "POST", "/api/policies")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(create_allocation_policy!(store, ctx, _json_body()); status = 201)
+    catch err
+        return _error_response(err)
+    end
+end
+
+function _uploaded_import_file()
+    for key in ("file", "csv", "upload")
+        infilespayload(key) && return filespayload(key)
+    end
+    throw(ApiError("VALIDATION_ERROR", "multipart CSV file field is required"; status = 400))
+end
+
+function _multipart_import_payload()
+    form = postpayload()
+    uploaded = _uploaded_import_file()
+    return (
+        import_type = _payload_get(form, "import_type", nothing),
+        original_filename = filename(uploaded),
+        content = read(uploaded, String),
+    )
+end
+
+function handle_create_import(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "POST", "/api/imports")
+        ctx, store = _protected_context_and_store(services; request = request)
+        payload = _multipart_import_payload()
+        job = create_import_job!(
+            store,
+            services.config,
+            ctx,
+            payload.import_type,
+            payload.original_filename,
+            payload.content,
+        )
+        return _json_response(job; status = 202)
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_get_import_result(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "GET", "/api/imports/:id")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(get_import_result(store, ctx, Router.params(:id)))
+    catch err
+        return _error_response(err)
+    end
+end

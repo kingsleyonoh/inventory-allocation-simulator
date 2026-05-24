@@ -19,6 +19,8 @@ include("tenant/auth.jl")
 include("tenant/authz.jl")
 include("tenant/admin_api.jl")
 include("planning/catalog.jl")
+include("planning/snapshots.jl")
+include("imports/importer.jl")
 include("jobs/worker.jl")
 include("observability/logging.jl")
 include("services.jl")
@@ -29,7 +31,7 @@ include("../config/routes.jl")
 
 export AppConfig, AppServices, SetupResult
 export load_config, load_env_file!, project_root, parse_port
-export build_services, shutdown!, install_shutdown_hook!, run_server!, main, register_routes!, route_definitions, health_response, db_health_response
+export build_services, shutdown!, install_shutdown_hook!, start_runtime_jobs!, run_server!, main, register_routes!, route_definitions, health_response, db_health_response
 export RequestCache, get_cached!, cache_keys
 export TenantContext, require_tenant_context, tenant_cache_key, tenant_filter_records
 export tenant_where_clause, tenant_scoped_select, assert_tenant_scoped_sql, inventory_positions_with_dimensions_sql
@@ -46,17 +48,39 @@ export list_warehouses, get_warehouse, create_warehouse!, update_warehouse!, dea
 export list_skus, get_sku, create_sku!, update_sku!, deactivate_sku!
 export list_inventory_positions, update_inventory_position!, list_demand_history
 export list_transfer_lanes, create_transfer_lane!, list_allocation_policies, create_allocation_policy!
+export capture_simulation_input_snapshot
+export create_import_job!, get_import_result, claim_next_import_job!, process_import_job!, import_job_worker!
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli
 export start!, stop!
 
-function run_server!(; config::AppConfig = load_config(ENV), async::Bool = false, start_jobs::Bool = false)
+function start_runtime_jobs!(
+    services::AppServices,
+    config::AppConfig;
+    start_jobs::Bool = false,
+    import_store::Union{Nothing,AbstractTenantAdminStore} = nothing,
+)::AppServices
+    if start_jobs
+        selected_import_store = import_store === nothing ? SqlTenantAdminStore(connect!(services.db)) : import_store
+        start!(services.jobs; import_store = selected_import_store, import_config = config)
+    end
+    return services
+end
+
+function run_server!(;
+    config::AppConfig = load_config(ENV),
+    async::Bool = false,
+    start_jobs::Bool = false,
+    import_store::Union{Nothing,AbstractTenantAdminStore} = nothing,
+    server_starter::Function = Genie.up,
+    install_hook::Bool = true,
+)
     services = build_services(config)
     register_routes!(services)
-    start_jobs && start!(services.jobs)
-    install_shutdown_hook!(services)
-    Genie.up(config.app.port, config.app.host; async = async)
+    start_runtime_jobs!(services, config; start_jobs = start_jobs, import_store = import_store)
+    install_hook && install_shutdown_hook!(services)
+    server_starter(config.app.port, config.app.host; async = async)
     return services
 end
 

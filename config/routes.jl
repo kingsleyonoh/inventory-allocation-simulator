@@ -35,6 +35,10 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/api/demand-history", "demand_history_list"),
         RouteDefinition(:GET, "/api/lanes", "lanes_list"),
         RouteDefinition(:POST, "/api/lanes", "lanes_create"),
+        RouteDefinition(:GET, "/api/policies", "policies_list"),
+        RouteDefinition(:POST, "/api/policies", "policies_create"),
+        RouteDefinition(:POST, "/api/imports", "imports_create"),
+        RouteDefinition(:GET, "/api/imports/:id", "imports_result"),
     ]
 end
 
@@ -148,6 +152,18 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/api/lanes"; method = POST) do
             handle_create_lane(services)
+        end
+        route("/api/policies"; method = GET) do
+            handle_list_policies(services)
+        end
+        route("/api/policies"; method = POST) do
+            handle_create_policy(services)
+        end
+        route("/api/imports"; method = POST) do
+            handle_create_import(services)
+        end
+        route("/api/imports/:id"; method = GET) do
+            handle_get_import_result(services)
         end
     end
 

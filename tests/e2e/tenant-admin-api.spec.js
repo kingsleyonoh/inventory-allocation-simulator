@@ -33,6 +33,10 @@ test.describe('tenant admin API routes over real HTTP', () => {
       ['get', '/api/demand-history'],
       ['get', '/api/lanes'],
       ['post', '/api/lanes'],
+      ['get', '/api/policies'],
+      ['post', '/api/policies'],
+      ['post', '/api/imports'],
+      ['get', '/api/imports/00000000-0000-4000-8000-000000000000'],
     ];
     for (const [method, path] of probes) {
       const response = await request[method](path, { data: {} });
