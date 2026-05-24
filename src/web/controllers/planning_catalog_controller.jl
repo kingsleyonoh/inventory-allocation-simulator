@@ -128,3 +128,53 @@ function handle_delete_sku(services::AppServices)
         return _error_response(err)
     end
 end
+
+function handle_list_inventory(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "GET", "/api/inventory")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(list_inventory_positions(store, ctx; params = _query_params_dict()))
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_update_inventory(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "PUT", "/api/inventory/:id")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(update_inventory_position!(store, ctx, Router.params(:id), _json_body()))
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_list_demand_history(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "GET", "/api/demand-history")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(list_demand_history(store, ctx; params = _query_params_dict()))
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_list_lanes(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "GET", "/api/lanes")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(list_transfer_lanes(store, ctx; params = _query_params_dict()))
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_create_lane(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "POST", "/api/lanes")
+        ctx, store = _protected_context_and_store(services; request = request)
+        return _json_response(create_transfer_lane!(store, ctx, _json_body()); status = 201)
+    catch err
+        return _error_response(err)
+    end
+end

@@ -10,6 +10,10 @@ mutable struct MemoryTenantAdminStore <: AbstractTenantAdminStore
     users::Dict{UUID,Dict{Symbol,Any}}
     warehouses::Dict{UUID,Dict{Symbol,Any}}
     skus::Dict{UUID,Dict{Symbol,Any}}
+    inventory_positions::Dict{UUID,Dict{Symbol,Any}}
+    demand_history::Dict{UUID,Dict{Symbol,Any}}
+    transfer_lanes::Dict{UUID,Dict{Symbol,Any}}
+    allocation_policies::Dict{UUID,Dict{Symbol,Any}}
 end
 
 function _record_map(records::AbstractVector)::Dict{UUID,Dict{Symbol,Any}}
@@ -25,8 +29,21 @@ function MemoryTenantAdminStore(
     users::AbstractVector;
     warehouses::AbstractVector = [],
     skus::AbstractVector = [],
+    inventory_positions::AbstractVector = [],
+    demand_history::AbstractVector = [],
+    transfer_lanes::AbstractVector = [],
+    allocation_policies::AbstractVector = [],
 )::MemoryTenantAdminStore
-    return MemoryTenantAdminStore(_record_map(tenants), _record_map(users), _record_map(warehouses), _record_map(skus))
+    return MemoryTenantAdminStore(
+        _record_map(tenants),
+        _record_map(users),
+        _record_map(warehouses),
+        _record_map(skus),
+        _record_map(inventory_positions),
+        _record_map(demand_history),
+        _record_map(transfer_lanes),
+        _record_map(allocation_policies),
+    )
 end
 
 mutable struct SqlTenantAdminStore <: AbstractTenantAdminStore

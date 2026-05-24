@@ -1,3 +1,4 @@
+using Dates
 using UUIDs
 using InventoryAllocationSimulator
 
@@ -53,5 +54,34 @@ function batch012_store()
         (id = UUID("30000000-0000-4000-8000-000000000002"), tenant_id = BATCH012_TENANT_A, sku_code = "SKU-BLUE", name = "Blue Widget", category = "widgets", unit_volume = 2.0, unit_margin_cents = 450, stockout_cost_cents = 800, holding_cost_cents = 20, active = false),
         (id = UUID("40000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_B, sku_code = "SKU-KIWI", name = "Kōwhai Pack", category = "packs", unit_volume = 3.0, unit_margin_cents = 750, stockout_cost_cents = 1200, holding_cost_cents = 35, active = true),
     ]
-    return MemoryTenantAdminStore(tenants, users; warehouses = warehouses, skus = skus)
+    inventory_positions = [
+        (id = UUID("50000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_A, warehouse_id = warehouses[1].id, sku_id = skus[1].id, on_hand_units = 100.0, reserved_units = 10.0, inbound_units = 25.0, safety_stock_units = 30.0, as_of = DateTime(2026, 5, 1, 9), source = "manual"),
+        (id = UUID("50000000-0000-4000-8000-000000000002"), tenant_id = BATCH012_TENANT_A, warehouse_id = warehouses[2].id, sku_id = skus[2].id, on_hand_units = 4.0, reserved_units = 1.0, inbound_units = 0.0, safety_stock_units = 12.0, as_of = DateTime(2026, 5, 1, 9), source = "csv"),
+        (id = UUID("60000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_B, warehouse_id = warehouses[3].id, sku_id = skus[3].id, on_hand_units = 500.0, reserved_units = 0.0, inbound_units = 20.0, safety_stock_units = 40.0, as_of = DateTime(2026, 5, 1, 9), source = "api"),
+    ]
+    demand_history = [
+        (id = UUID("70000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_A, warehouse_id = warehouses[1].id, sku_id = skus[1].id, period_start = Date(2026, 4, 1), period_end = Date(2026, 4, 7), demand_units = 80.0, lost_sales_units = 15.0, source = "manual"),
+        (id = UUID("70000000-0000-4000-8000-000000000002"), tenant_id = BATCH012_TENANT_A, warehouse_id = warehouses[2].id, sku_id = skus[2].id, period_start = Date(2026, 4, 8), period_end = Date(2026, 4, 14), demand_units = 8.0, lost_sales_units = 0.0, source = "csv"),
+        (id = UUID("80000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_B, warehouse_id = warehouses[3].id, sku_id = skus[3].id, period_start = Date(2026, 4, 1), period_end = Date(2026, 4, 7), demand_units = 300.0, lost_sales_units = 5.0, source = "api"),
+    ]
+    transfer_lanes = [
+        (id = UUID("90000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_A, from_warehouse_id = warehouses[1].id, to_warehouse_id = warehouses[2].id, lead_time_days = 2, cost_per_unit_cents = 125, capacity_units_day = 200.0, active = true),
+        (id = UUID("90000000-0000-4000-8000-000000000002"), tenant_id = BATCH012_TENANT_A, from_warehouse_id = warehouses[2].id, to_warehouse_id = warehouses[1].id, lead_time_days = 3, cost_per_unit_cents = 140, capacity_units_day = nothing, active = false),
+        (id = UUID("a0000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_B, from_warehouse_id = warehouses[3].id, to_warehouse_id = warehouses[3].id, lead_time_days = 0, cost_per_unit_cents = 0, capacity_units_day = 50.0, active = true),
+    ]
+    allocation_policies = [
+        (id = UUID("b0000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_A, name = "Balanced baseline", objective = "balanced", planning_horizon_days = 30, service_level_target = 0.95, max_transfer_cost_cents = 50_000, allow_cross_region = true, frozen_until = nothing, config = Dict("priority" => "service"), status = "active"),
+        (id = UUID("b0000000-0000-4000-8000-000000000002"), tenant_id = BATCH012_TENANT_A, name = "Draft margin", objective = "maximize_margin", planning_horizon_days = 45, service_level_target = 0.9, max_transfer_cost_cents = nothing, allow_cross_region = false, frozen_until = Date(2026, 6, 1), config = Dict{String,Any}(), status = "draft"),
+        (id = UUID("c0000000-0000-4000-8000-000000000001"), tenant_id = BATCH012_TENANT_B, name = "Kōwhai active", objective = "minimize_total_cost", planning_horizon_days = 21, service_level_target = 0.93, max_transfer_cost_cents = 10_000, allow_cross_region = true, frozen_until = nothing, config = Dict{String,Any}(), status = "active"),
+    ]
+    return MemoryTenantAdminStore(
+        tenants,
+        users;
+        warehouses = warehouses,
+        skus = skus,
+        inventory_positions = inventory_positions,
+        demand_history = demand_history,
+        transfer_lanes = transfer_lanes,
+        allocation_policies = allocation_policies,
+    )
 end

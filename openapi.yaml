@@ -25,6 +25,25 @@ paths:
     post:
       summary: Create SKU
       responses: { '201': { description: Created } }
+  /api/inventory:
+    get:
+      summary: List inventory positions
+      responses: { '200': { description: OK } }
+  /api/inventory/{id}:
+    put:
+      summary: Update inventory position
+      responses: { '200': { description: OK } }
+  /api/demand-history:
+    get:
+      summary: List demand history
+      responses: { '200': { description: OK } }
+  /api/lanes:
+    get:
+      summary: List transfer lanes
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create transfer lane
+      responses: { '201': { description: Created } }
   /api/imports:
     post:
       summary: Upload planning CSV import

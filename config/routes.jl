@@ -30,6 +30,11 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/api/skus/:id", "skus_get"),
         RouteDefinition(:PATCH, "/api/skus/:id", "skus_update"),
         RouteDefinition(:DELETE, "/api/skus/:id", "skus_delete"),
+        RouteDefinition(:GET, "/api/inventory", "inventory_list"),
+        RouteDefinition(:PUT, "/api/inventory/:id", "inventory_update"),
+        RouteDefinition(:GET, "/api/demand-history", "demand_history_list"),
+        RouteDefinition(:GET, "/api/lanes", "lanes_list"),
+        RouteDefinition(:POST, "/api/lanes", "lanes_create"),
     ]
 end
 
@@ -128,6 +133,21 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/api/skus/:id"; method = DELETE) do
             handle_delete_sku(services)
+        end
+        route("/api/inventory"; method = GET) do
+            handle_list_inventory(services)
+        end
+        route("/api/inventory/:id"; method = PUT) do
+            handle_update_inventory(services)
+        end
+        route("/api/demand-history"; method = GET) do
+            handle_list_demand_history(services)
+        end
+        route("/api/lanes"; method = GET) do
+            handle_list_lanes(services)
+        end
+        route("/api/lanes"; method = POST) do
+            handle_create_lane(services)
         end
     end
 

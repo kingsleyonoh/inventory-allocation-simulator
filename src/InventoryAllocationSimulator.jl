@@ -44,6 +44,8 @@ export AbstractTenantAdminStore, MemoryTenantAdminStore, SqlTenantAdminStore
 export register_tenant!, rotate_api_key!, get_tenant_profile, update_tenant_settings!, list_users, create_user!, update_user!
 export list_warehouses, get_warehouse, create_warehouse!, update_warehouse!, deactivate_warehouse!
 export list_skus, get_sku, create_sku!, update_sku!, deactivate_sku!
+export list_inventory_positions, update_inventory_position!, list_demand_history
+export list_transfer_lanes, create_transfer_lane!, list_allocation_policies, create_allocation_policy!
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli
