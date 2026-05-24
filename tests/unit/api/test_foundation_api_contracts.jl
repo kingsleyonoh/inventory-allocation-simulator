@@ -1,6 +1,7 @@
 using Test
 using Dates
 using UUIDs
+using SHA
 using JSON3
 using InventoryAllocationSimulator
 
@@ -89,6 +90,12 @@ end
     session_id = "session-123"
     secret = "session-secret-placeholder"
     signed_cookie = signed_session_cookie(session_id, secret)
+    signature = split(signed_cookie, "."; limit = 2)[2]
+    expected_hmac = bytes2hex(SHA.hmac_sha256(Vector{UInt8}(secret), Vector{UInt8}(session_id)))
+    legacy_prefix_sha = bytes2hex(sha256(string(secret, ":", session_id)))
+    @test signature == expected_hmac
+    @test signature != legacy_prefix_sha
+    @test_throws AuthError verify_session_cookie(string(session_id, ".", legacy_prefix_sha), secret)
 
     store = FakeAuthStore(
         Dict(key_hash => TenantAuthRecord(tenant_id, nothing, "planner", true)),

@@ -46,16 +46,31 @@ end
 lookup_tenant_by_api_key_hash(::AbstractAuthStore, _api_key_hash::String) = nothing
 lookup_session_record(::AbstractAuthStore, _session_id::String) = nothing
 
+function _session_signature(session_id::AbstractString, secret::AbstractString)::String
+    return bytes2hex(SHA.hmac_sha256(Vector{UInt8}(secret), Vector{UInt8}(session_id)))
+end
+
 function signed_session_cookie(session_id::AbstractString, secret::AbstractString)::String
-    signature = bytes2hex(sha256(string(secret, ":", session_id)))
-    return string(session_id, ".", signature)
+    return string(session_id, ".", _session_signature(session_id, secret))
+end
+
+function _constant_time_equal(left::AbstractString, right::AbstractString)::Bool
+    left_bytes = codeunits(String(left))
+    right_bytes = codeunits(String(right))
+    diff = xor(length(left_bytes), length(right_bytes))
+    for index in 1:max(length(left_bytes), length(right_bytes))
+        left_byte = index <= length(left_bytes) ? left_bytes[index] : UInt8(0)
+        right_byte = index <= length(right_bytes) ? right_bytes[index] : UInt8(0)
+        diff |= xor(left_byte, right_byte)
+    end
+    return diff == 0
 end
 
 function verify_session_cookie(cookie::AbstractString, secret::AbstractString)::String
     parts = split(String(cookie), "."; limit = 2)
     length(parts) == 2 || throw(AuthError("UNAUTHORIZED", "Invalid session"; status = 401))
     expected = signed_session_cookie(parts[1], secret)
-    expected == String(cookie) || throw(AuthError("UNAUTHORIZED", "Invalid session"; status = 401))
+    _constant_time_equal(expected, String(cookie)) || throw(AuthError("UNAUTHORIZED", "Invalid session"; status = 401))
     return parts[1]
 end
 
