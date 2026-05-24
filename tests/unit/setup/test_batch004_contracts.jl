@@ -53,6 +53,17 @@ end
     @test Bool(implement_result.tests.e2e.required) == false
 end
 
+@testset "Batch 021 runtime artifacts expose runnable E2E command even when skipped" begin
+    gate = batch004_read(".yolo", "gates", "e2e-batch-021.md")
+    implement_result = batch004_json(".yolo", "batch-results", "batch-021-implement.json")
+
+    @test occursin("result: SKIPPED_NO_ENDPOINTS", gate)
+    @test occursin("endpoints_touched: no", gate)
+    @test occursin("command: npx playwright test", gate)
+    @test String(implement_result.tests.e2e.command) == "npx playwright test"
+    @test Bool(implement_result.tests.e2e.required) == false
+end
+
 @testset "Batch 015 audit regression command is rerunnable" begin
     audit_result = batch004_json(".yolo", "batch-results", "batch-015-audit.json")
     command = String(audit_result.tests.regression.command)

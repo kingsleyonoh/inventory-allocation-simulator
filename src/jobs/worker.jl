@@ -9,11 +9,12 @@ mutable struct JobService
     import_contexts::Vector{TenantContext}
     simulation_store::Union{Nothing,AbstractTenantAdminStore}
     simulation_contexts::Vector{TenantContext}
+    last_backtest_run_date::Union{Nothing,Date}
     poll_interval_seconds::Float64
 end
 
 function build_job_service()::JobService
-    return JobService(true, ["import_job_worker", "simulation_worker", "stale_run_reaper", "outbox_dispatcher"], false, false, Task[], nothing, nothing, TenantContext[], nothing, TenantContext[], 0.05)
+    return JobService(true, ["import_job_worker", "simulation_worker", "stale_run_reaper", "daily_backtest", "outbox_dispatcher"], false, false, Task[], nothing, nothing, TenantContext[], nothing, TenantContext[], nothing, 0.05)
 end
 
 function import_job_worker!(store::AbstractTenantAdminStore, config::AppConfig, ctx::TenantContext; worker_id::AbstractString = "import-worker")
@@ -44,17 +45,36 @@ function _import_worker(service::JobService)::Nothing
     return nothing
 end
 
+function run_due_daily_backtest!(
+    service::JobService,
+    store::AbstractTenantAdminStore,
+    config::AppConfig,
+    contexts::AbstractVector{TenantContext};
+    now::DateTime = Dates.now(),
+)::NamedTuple
+    daily_backtest_due(now, service.last_backtest_run_date) || return (ran = false, results_written = 0, reports = NamedTuple[])
+    reports = if store isa SqlTenantAdminStore
+        run_daily_backtests!(store, config; as_of = now)
+    else
+        run_daily_backtests!(store, config, contexts; as_of = now)
+    end
+    service.last_backtest_run_date = Date(now)
+    return (ran = true, results_written = length(reports), reports = reports)
+end
+
 function _simulation_worker(service::JobService)::Nothing
     while !service.shutdown_requested
         if service.simulation_store isa SqlTenantAdminStore && service.import_config !== nothing
             simulation_worker!(service.simulation_store, service.import_config; worker_id = "simulation-worker")
             reap_stale_simulation_runs!(service.simulation_store, service.import_config)
+            run_due_daily_backtest!(service, service.simulation_store, service.import_config, TenantContext[])
         elseif service.simulation_store !== nothing && service.import_config !== nothing
             for ctx in service.simulation_contexts
                 service.shutdown_requested && break
                 simulation_worker!(service.simulation_store, ctx; worker_id = "simulation-worker")
                 reap_stale_simulation_runs!(service.simulation_store, ctx; stale_after_minutes = service.import_config.simulation.run_stale_after_minutes)
             end
+            run_due_daily_backtest!(service, service.simulation_store, service.import_config, service.simulation_contexts)
         end
         sleep(service.poll_interval_seconds)
     end

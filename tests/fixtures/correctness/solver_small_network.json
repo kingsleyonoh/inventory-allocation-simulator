@@ -23,6 +23,6 @@
     "sku_code": "SKU-FAST",
     "transfer_units": 30,
     "binding_constraints": ["lane_capacity", "receiver_service_level"],
-    "net_value_cents": 31500
+    "net_value_cents": 30900
   }
 }

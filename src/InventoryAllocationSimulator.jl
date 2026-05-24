@@ -24,6 +24,7 @@ include("planning/forecasts.jl")
 include("planning/scenarios.jl")
 include("solver/model_builder.jl")
 include("planning/simulations.jl")
+include("planning/backtests.jl")
 include("imports/importer.jl")
 include("jobs/locks.jl")
 include("jobs/worker.jl")
@@ -58,7 +59,8 @@ export capture_simulation_input_snapshot, clean_demand_history, forecast_preview
 export AllocationSolverConfig, solve_allocation_model, solver_outcome_decision, recommendation_net_value, generate_allocation_recommendations!
 export create_simulation_run!, list_simulation_runs, get_simulation_run, cancel_simulation_run!
 export claim_next_simulation_run!, claim_next_simulation_run_for_system!, simulation_worker!, reap_stale_simulation_runs!, generate_demand_scenarios!
-export fetch_demand_history
+export run_daily_backtest!, run_daily_backtests!, daily_backtest_due, persist_policy_backtest_results!
+export fetch_demand_history, build_job_service, run_due_daily_backtest!
 export create_import_job!, get_import_result, claim_next_import_job!, process_import_job!, import_job_worker!
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
