@@ -16,9 +16,20 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/tenants/me", "tenant_me"),
         RouteDefinition(:GET, "/api/settings/tenant", "tenant_settings_read"),
         RouteDefinition(:PATCH, "/api/settings/tenant", "tenant_settings_update"),
+        RouteDefinition(:POST, "/api/settings/api-key/rotate", "api_key_rotate"),
         RouteDefinition(:GET, "/api/users", "users_list"),
         RouteDefinition(:POST, "/api/users", "users_create"),
         RouteDefinition(:PATCH, "/api/users/:id", "users_update"),
+        RouteDefinition(:GET, "/api/warehouses", "warehouses_list"),
+        RouteDefinition(:POST, "/api/warehouses", "warehouses_create"),
+        RouteDefinition(:GET, "/api/warehouses/:id", "warehouses_get"),
+        RouteDefinition(:PATCH, "/api/warehouses/:id", "warehouses_update"),
+        RouteDefinition(:DELETE, "/api/warehouses/:id", "warehouses_delete"),
+        RouteDefinition(:GET, "/api/skus", "skus_list"),
+        RouteDefinition(:POST, "/api/skus", "skus_create"),
+        RouteDefinition(:GET, "/api/skus/:id", "skus_get"),
+        RouteDefinition(:PATCH, "/api/skus/:id", "skus_update"),
+        RouteDefinition(:DELETE, "/api/skus/:id", "skus_delete"),
     ]
 end
 
@@ -84,6 +95,39 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/api/users/:id"; method = PATCH) do
             handle_update_user(services)
+        end
+        route("/api/settings/api-key/rotate"; method = POST) do
+            handle_rotate_api_key(services)
+        end
+        route("/api/warehouses"; method = GET) do
+            handle_list_warehouses(services)
+        end
+        route("/api/warehouses"; method = POST) do
+            handle_create_warehouse(services)
+        end
+        route("/api/warehouses/:id"; method = GET) do
+            handle_get_warehouse(services)
+        end
+        route("/api/warehouses/:id"; method = PATCH) do
+            handle_update_warehouse(services)
+        end
+        route("/api/warehouses/:id"; method = DELETE) do
+            handle_delete_warehouse(services)
+        end
+        route("/api/skus"; method = GET) do
+            handle_list_skus(services)
+        end
+        route("/api/skus"; method = POST) do
+            handle_create_sku(services)
+        end
+        route("/api/skus/:id"; method = GET) do
+            handle_get_sku(services)
+        end
+        route("/api/skus/:id"; method = PATCH) do
+            handle_update_sku(services)
+        end
+        route("/api/skus/:id"; method = DELETE) do
+            handle_delete_sku(services)
         end
     end
 

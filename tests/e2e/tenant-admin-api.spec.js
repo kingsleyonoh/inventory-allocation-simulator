@@ -18,10 +18,20 @@ function findPlaywrightTestModule(start) {
 const { test, expect } = require(findPlaywrightTestModule(process.argv[1]));
 
 test.describe('tenant admin API routes over real HTTP', () => {
-  test('protected tenant and user routes fail closed without authentication', async ({ request }) => {
-    for (const path of ['/tenants/me', '/api/settings/tenant', '/api/users']) {
-      const response = await request.get(path);
-      expect(response.status(), `${path} status`).toBe(401);
+  test('protected tenant, user, API-key, warehouse, and SKU routes fail closed without authentication', async ({ request }) => {
+    const probes = [
+      ['get', '/tenants/me'],
+      ['get', '/api/settings/tenant'],
+      ['get', '/api/users'],
+      ['post', '/api/settings/api-key/rotate'],
+      ['get', '/api/warehouses'],
+      ['post', '/api/warehouses'],
+      ['get', '/api/skus'],
+      ['post', '/api/skus'],
+    ];
+    for (const [method, path] of probes) {
+      const response = await request[method](path, { data: {} });
+      expect(response.status(), `${method.toUpperCase()} ${path} status`).toBe(401);
       const body = await response.json();
       expect(body.error.code).toBe('UNAUTHORIZED');
     }

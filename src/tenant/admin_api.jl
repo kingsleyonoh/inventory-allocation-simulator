@@ -8,18 +8,25 @@ abstract type AbstractTenantAdminStore <: AbstractAuthStore end
 mutable struct MemoryTenantAdminStore <: AbstractTenantAdminStore
     tenants::Dict{UUID,Dict{Symbol,Any}}
     users::Dict{UUID,Dict{Symbol,Any}}
+    warehouses::Dict{UUID,Dict{Symbol,Any}}
+    skus::Dict{UUID,Dict{Symbol,Any}}
 end
 
-function MemoryTenantAdminStore(tenants::AbstractVector, users::AbstractVector)::MemoryTenantAdminStore
-    tenant_map = Dict{UUID,Dict{Symbol,Any}}()
-    user_map = Dict{UUID,Dict{Symbol,Any}}()
-    for tenant in tenants
-        tenant_map[tenant.id] = Dict{Symbol,Any}(name => getproperty(tenant, name) for name in propertynames(tenant))
+function _record_map(records::AbstractVector)::Dict{UUID,Dict{Symbol,Any}}
+    mapped = Dict{UUID,Dict{Symbol,Any}}()
+    for record in records
+        mapped[record.id] = Dict{Symbol,Any}(name => getproperty(record, name) for name in propertynames(record))
     end
-    for user in users
-        user_map[user.id] = Dict{Symbol,Any}(name => getproperty(user, name) for name in propertynames(user))
-    end
-    return MemoryTenantAdminStore(tenant_map, user_map)
+    return mapped
+end
+
+function MemoryTenantAdminStore(
+    tenants::AbstractVector,
+    users::AbstractVector;
+    warehouses::AbstractVector = [],
+    skus::AbstractVector = [],
+)::MemoryTenantAdminStore
+    return MemoryTenantAdminStore(_record_map(tenants), _record_map(users), _record_map(warehouses), _record_map(skus))
 end
 
 mutable struct SqlTenantAdminStore <: AbstractTenantAdminStore
@@ -163,6 +170,18 @@ function register_tenant!(
     return (id = tenant_id, name = name, apiKey = raw_key)
 end
 
+function rotate_api_key!(
+    store::AbstractTenantAdminStore,
+    config::AppConfig,
+    ctx::TenantContext;
+    key_material = nothing,
+)::NamedTuple
+    authorize!(ctx, "manage", "user_api_key")
+    raw_key = generate_api_key(config.tenant.api_key_prefix; key_material = key_material)
+    persist_api_key_hash!(store, ctx.tenant_id, hash_api_key(raw_key))
+    return (tenant_id = string(ctx.tenant_id), apiKey = raw_key, apiKeyHash = nothing)
+end
+
 function insert_registered_tenant!(store::MemoryTenantAdminStore, tenant_id::UUID, name::String, api_key_hash::String)
     store.tenants[tenant_id] = Dict{Symbol,Any}(
         :id => tenant_id,
@@ -186,6 +205,20 @@ function insert_registered_tenant!(store::SqlTenantAdminStore, tenant_id::UUID, 
         VALUES (\$1, \$2, \$2, \$2, \$2, \$3)
     """, [string(tenant_id), name, api_key_hash])
     return tenant_id
+end
+
+function persist_api_key_hash!(store::MemoryTenantAdminStore, tenant_id::UUID, api_key_hash::String)
+    tenant = get(store.tenants, tenant_id, nothing)
+    tenant === nothing && throw(ApiError("NOT_FOUND", "Tenant not found"; status = 404))
+    tenant[:api_key_hash] = api_key_hash
+    return tenant
+end
+
+function persist_api_key_hash!(store::SqlTenantAdminStore, tenant_id::UUID, api_key_hash::String)
+    result = LibPQ.execute(store.connection, """
+        UPDATE tenants SET api_key_hash = \$2, updated_at = now() WHERE id = \$1 AND is_active = true
+    """, [string(tenant_id), api_key_hash])
+    return result
 end
 
 function get_tenant_profile(store::AbstractTenantAdminStore, ctx::TenantContext)::NamedTuple
