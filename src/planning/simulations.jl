@@ -143,6 +143,14 @@ function fail_simulation_run!(store::AbstractTenantAdminStore, row, message::Abs
     return _terminal_simulation_run!(store, row, "failed"; error_message = String(message))
 end
 
+function _simulation_failure_message(err)::String
+    message = sprint(showerror, err)
+    if err isa ApiError && !isempty(err.details)
+        return string(message, " details=", JSON3.write(err.details))
+    end
+    return message
+end
+
 function simulation_worker!(
     store::AbstractTenantAdminStore,
     ctx::TenantContext;
@@ -156,9 +164,10 @@ function simulation_worker!(
     end
     try
         generate_demand_scenarios!(store, ctx, claimed[:id]; seed = seed)
+        generate_allocation_recommendations!(store, ctx, claimed[:id])
         return complete_simulation_run!(store, claimed)
     catch err
-        return fail_simulation_run!(store, claimed, sprint(showerror, err))
+        return fail_simulation_run!(store, claimed, _simulation_failure_message(err))
     end
 end
 
@@ -373,9 +382,10 @@ function simulation_worker!(
     ctx = TenantContext(claimed[:tenant_id]; role = "admin", auth_method = :job)
     try
         generate_demand_scenarios!(store, ctx, claimed[:id]; seed = seed)
+        generate_allocation_recommendations!(store, ctx, claimed[:id])
         return complete_simulation_run!(store, claimed)
     catch err
-        return fail_simulation_run!(store, claimed, sprint(showerror, err))
+        return fail_simulation_run!(store, claimed, _simulation_failure_message(err))
     end
 end
 

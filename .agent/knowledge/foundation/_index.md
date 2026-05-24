@@ -7,6 +7,7 @@
 | File | Summary |
 |------|---------|
 | `EXAMPLE.md` | Template showing the expected shape — delete once a real foundation primitive exists. |
+| `allocation-solver-net-value.md` | JuMP allocation model constraints/objectives/diagnostics, recommendation explanation JSON, and shared net-value contract. |
 | `api-request-foundation.md` | Shared API error envelope, pagination/filter validation, rate-limit, API-key/session tenant auth, and request-cache contract. |
 | `core-config-loading.md` | Typed environment configuration loader and validation contract for server, CLI, and services. |
 | `db-migration-runner.md` | Ordered SQL migration discovery/execution contract and DB health readiness integration. |
