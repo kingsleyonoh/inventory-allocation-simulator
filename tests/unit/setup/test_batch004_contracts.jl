@@ -53,6 +53,23 @@ end
     @test Bool(implement_result.tests.e2e.required) == false
 end
 
+@testset "Batch 015 audit regression command is rerunnable" begin
+    audit_result = batch004_json(".yolo", "batch-results", "batch-015-audit.json")
+    command = String(audit_result.tests.regression.command)
+    script_path = batch004_path(".yolo", "scripts", "validate-batch-015-phase1-audit.sh")
+
+    @test command == "bash .yolo/scripts/validate-batch-015-phase1-audit.sh"
+    @test audit_result.auditType == "matrix-coverage"
+    @test audit_result.matrixRef == "Roles × Resource Actions"
+    @test audit_result.cellsChecked == 18
+    @test audit_result.cellsPassed == 18
+    @test audit_result.cellsFailed == 0
+    @test isfile(script_path)
+    if isfile(script_path)
+        @test success(`bash $script_path`)
+    end
+end
+
 @testset "Authz matrix fixture covers every PRD role/resource cell" begin
     matrix = batch004_json("tests", "fixtures", "authz_matrix.json")
     @test matrix.schemaVersion == 1

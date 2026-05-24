@@ -21,9 +21,10 @@ function import_job_worker!(store::AbstractTenantAdminStore, config::AppConfig, 
 end
 
 function import_job_worker!(store::SqlTenantAdminStore, config::AppConfig; worker_id::AbstractString = "import-worker")
-    claimed = claim_next_import_job!(store; worker_id = worker_id)
+    claimed = claim_next_import_job_for_system!(store; worker_id = worker_id)
     claimed === nothing && return nothing
-    return process_import_job!(store, config, claimed.id)
+    ctx = TenantContext(claimed.tenant_id; role = "admin", auth_method = :job)
+    return process_import_job!(store, config, ctx, claimed.id)
 end
 
 function _import_worker(service::JobService)::Nothing

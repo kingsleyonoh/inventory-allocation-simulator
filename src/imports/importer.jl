@@ -399,7 +399,7 @@ function claim_next_import_job!(store::SqlTenantAdminStore, ctx::TenantContext; 
     return _import_job_response(_sql_import_job_row(first(result)))
 end
 
-function claim_next_import_job!(store::SqlTenantAdminStore; worker_id::AbstractString = "import-worker")
+function claim_next_import_job_for_system!(store::SqlTenantAdminStore; worker_id::AbstractString = "import-worker")
     result = LibPQ.execute(store.connection, """
         UPDATE import_jobs
         SET status = 'running', updated_at = now()
@@ -409,10 +409,11 @@ function claim_next_import_job!(store::SqlTenantAdminStore; worker_id::AbstractS
             ORDER BY created_at
             LIMIT 1
         )
-        RETURNING id, tenant_id, import_type, status, original_filename, file_path, row_count, error_report
+        RETURNING id, tenant_id
     """)
     isempty(result) && return nothing
-    return _import_job_response(_sql_import_job_row(first(result)))
+    row = first(result)
+    return (id = UUID(String(row[1])), tenant_id = UUID(String(row[2])))
 end
 
 function _upsert_warehouse_from_import!(store::AbstractTenantAdminStore, ctx::TenantContext, payload)::Nothing
@@ -593,23 +594,5 @@ function process_import_job!(store::AbstractTenantAdminStore, config::AppConfig,
 end
 
 function process_import_job!(store::SqlTenantAdminStore, config::AppConfig, ctx::TenantContext, job_id)::NamedTuple
-    return _process_import_job!(store, config, ctx, job_id)
-end
-
-function _fetch_import_job_by_id(store::SqlTenantAdminStore, job_id::UUID)
-    result = LibPQ.execute(store.connection, """
-        SELECT id, tenant_id, import_type, status, original_filename, file_path, row_count, error_report
-        FROM import_jobs
-        WHERE id = \$1
-        LIMIT 1
-    """, [string(job_id)])
-    isempty(result) && return nothing
-    return _sql_import_job_row(first(result))
-end
-
-function process_import_job!(store::SqlTenantAdminStore, config::AppConfig, job_id)::NamedTuple
-    row = _fetch_import_job_by_id(store, _uuid_value(job_id))
-    row === nothing && throw(ApiError("NOT_FOUND", "Import job not found"; status = 404))
-    ctx = TenantContext(row[:tenant_id]; role = "admin", auth_method = :job)
     return _process_import_job!(store, config, ctx, job_id)
 end

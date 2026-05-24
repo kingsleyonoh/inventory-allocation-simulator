@@ -120,6 +120,15 @@ end
     @test_throws AuthzError create_user!(store, BATCH011_VIEWER_A, Dict("email" => "blocked@example.test", "name" => "Blocked", "role" => "viewer"))
     @test_throws ApiError create_user!(store, BATCH011_ADMIN_A, Dict("email" => "bad@example.test", "name" => "Bad", "role" => "owner"))
     @test_throws ApiError update_user!(store, BATCH011_ADMIN_A, string(UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")), Dict("role" => "viewer"))
+
+    malformed = try
+        update_user!(store, BATCH011_ADMIN_A, "not-a-user-uuid", Dict("role" => "viewer"))
+    catch err
+        err
+    end
+    @test malformed isa ApiError
+    @test malformed.code == "VALIDATION_ERROR"
+    @test malformed.status == 400
 end
 
 @testset "Tenant profile serialization treats nullable SQL identity fields as JSON null" begin

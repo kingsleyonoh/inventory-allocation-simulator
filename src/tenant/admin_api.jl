@@ -130,6 +130,16 @@ function _validate_role(role::AbstractString)::String
     return value
 end
 
+function _tenant_admin_uuid_value(value)::UUID
+    value isa UUID && return value
+    try
+        return UUID(strip(String(value)))
+    catch err
+        err isa ArgumentError || rethrow(err)
+        throw(ApiError("VALIDATION_ERROR", "UUID value is malformed"; status = 400))
+    end
+end
+
 function lookup_tenant_by_api_key_hash(store::MemoryTenantAdminStore, api_key_hash::String)
     for tenant in values(store.tenants)
         tenant[:api_key_hash] == api_key_hash || continue
@@ -361,7 +371,7 @@ end
 
 function update_user!(store::AbstractTenantAdminStore, ctx::TenantContext, user_id, payload)::NamedTuple
     authorize!(ctx, "manage", "user_api_key")
-    parsed_id = user_id isa UUID ? user_id : UUID(String(user_id))
+    parsed_id = _tenant_admin_uuid_value(user_id)
     current = fetch_user(store, ctx.tenant_id, parsed_id)
     current === nothing && throw(ApiError("NOT_FOUND", "User not found"; status = 404))
     role = _optional_text(payload, "role")

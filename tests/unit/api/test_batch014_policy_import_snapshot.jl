@@ -145,9 +145,27 @@ end
 
     validate_inventory = getfield(InventoryAllocationSimulator, Symbol("_validate_inventory_import_row"))
     with_transaction = getfield(InventoryAllocationSimulator, Symbol("_with_import_transaction!"))
+    importer_source = read(joinpath(project_root(), "src", "imports", "importer.jl"), String)
+    system_claim_name = Symbol("claim_next_import_job_for_system!")
     @test hasmethod(validate_inventory, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore, UUID, Int, Dict{String,String}})
-    @test hasmethod(InventoryAllocationSimulator.process_import_job!, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore, AppConfig, UUID})
     @test hasmethod(with_transaction, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore, Function})
+    @test isdefined(InventoryAllocationSimulator, system_claim_name)
+    if isdefined(InventoryAllocationSimulator, system_claim_name)
+        system_claim = getfield(InventoryAllocationSimulator, system_claim_name)
+        @test hasmethod(system_claim, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore})
+    end
+    @test !hasmethod(InventoryAllocationSimulator.claim_next_import_job!, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore})
+    @test !hasmethod(InventoryAllocationSimulator.process_import_job!, Tuple{InventoryAllocationSimulator.SqlTenantAdminStore, AppConfig, UUID})
+    @test !occursin("function _fetch_import_job_by_id", importer_source)
+    system_claim_start = findfirst("function claim_next_import_job_for_system!", importer_source)
+    @test system_claim_start !== nothing
+    if system_claim_start !== nothing
+        next_function = findnext("function ", importer_source, last(system_claim_start) + 1)
+        system_claim_block = next_function === nothing ? importer_source[first(system_claim_start):end] : importer_source[first(system_claim_start):first(next_function)-1]
+        @test occursin("RETURNING id, tenant_id", system_claim_block)
+        @test !occursin("file_path", system_claim_block)
+        @test !occursin("error_report", system_claim_block)
+    end
     @test with_transaction(batch012_store(), () -> :memory_transaction_passthrough) == :memory_transaction_passthrough
     @test occursin("filespayload", controller)
     @test occursin("postpayload", controller)
