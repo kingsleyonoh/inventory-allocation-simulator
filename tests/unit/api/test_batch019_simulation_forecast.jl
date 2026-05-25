@@ -160,7 +160,13 @@ end
     @test occursin("idempotency_key text null", migration)
     @test occursin("create unique index if not exists simulation_runs_tenant_idempotency_key_idx on simulation_runs (tenant_id, idempotency_key) where idempotency_key is not null", migration)
 
-    source = replace(lowercase(read(joinpath(project_root(), "src", "planning", "simulations.jl"), String)), r"\s+" => " ")
+    simulation_sources = [
+        "simulations.jl",
+        "simulations_lifecycle.jl",
+        "simulations_memory_store.jl",
+        "simulations_sql_store.jl",
+    ]
+    source = replace(lowercase(join(read(joinpath(project_root(), "src", "planning", file), String) for file in simulation_sources)), r"\s+" => " ")
     @test !occursin("fetch_simulation_run_by_idempotency_key(store::sqltenantadminstore, tenant_id::uuid, key::string) = nothing", source)
     @test occursin(raw"idempotency_key = \$2", source)
     @test occursin("idempotency_key)", source)
