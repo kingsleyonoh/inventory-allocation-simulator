@@ -17,7 +17,7 @@ function _next_param(path::AbstractString)::String
     return replace(HTTP.URIs.escapeuri(String(path)), "/" => "%2F")
 end
 
-const UI_NEXT_ALLOWLIST = Set(["/dashboard", "/imports", "/warehouses", "/skus"])
+const UI_NEXT_ALLOWLIST = Set(["/dashboard", "/imports", "/warehouses", "/skus", "/lanes", "/policies", "/settings", "/simulations"])
 
 function _safe_ui_next(value)::String
     raw = strip(String(value))
@@ -44,6 +44,8 @@ function _app_shell(title::AbstractString, body::AbstractString; active::Abstrac
     nav = [
         ("Dashboard", "/dashboard"), ("Imports", "/imports"),
         ("Warehouses", "/warehouses"), ("SKUs", "/skus"),
+        ("Lanes", "/lanes"), ("Policies", "/policies"),
+        ("Simulations", "/simulations"), ("Settings", "/settings"),
     ]
     links = _join_html(["<a class=\"ias-nav-link $(active == label ? "is-active" : "")\" href=\"$href\">$label</a>" for (label, href) in nav])
     return """

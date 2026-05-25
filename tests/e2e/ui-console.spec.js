@@ -35,6 +35,15 @@ test.describe('operations console UI over real HTTP', () => {
       ['/warehouses/10000000-0000-4000-8000-000000000001', { active: 'false' }, /\/login\?next=%2Fwarehouses$/],
       ['/skus', { sku_code: 'sku-gold', name: 'Gold Widget', category: 'widgets' }, /\/login\?next=%2Fskus$/],
       ['/skus/30000000-0000-4000-8000-000000000001', { active: 'false' }, /\/login\?next=%2Fskus$/],
+      ['/lanes', { lead_time_days: '2', cost_per_unit_cents: '125' }, /\/login\?next=%2Flanes$/],
+      ['/lanes/90000000-0000-4000-8000-000000000001', { active: 'false' }, /\/login\?next=%2Flanes$/],
+      ['/policies', { name: 'Service guardrail', objective: 'balanced' }, /\/login\?next=%2Fpolicies$/],
+      ['/policies/b0000000-0000-4000-8000-000000000001', { status: 'archived' }, /\/login\?next=%2Fpolicies$/],
+      ['/settings', { name: 'Northstar Updated' }, /\/login\?next=%2Fsettings$/],
+      ['/settings/users', { email: 'viewer2@example.test', role: 'viewer' }, /\/login\?next=%2Fsettings$/],
+      ['/settings/api-key/rotate', {}, /\/login\?next=%2Fsettings$/],
+      ['/simulations', { name: 'Morning run' }, /\/login\?next=%2Fsimulations$/],
+      ['/simulations/00000000-0000-4000-8000-000000000000/cancel', {}, /\/login\?next=%2Fsimulations$/],
     ];
 
     for (const [url, form, expectedLocation] of formRoutes) {

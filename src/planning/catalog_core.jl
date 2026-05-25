@@ -153,36 +153,37 @@ function _matches_uuid_filter(row, page::CursorPageRequest, key::String, field::
     return row[field] == _uuid_value(page.filters[key])
 end
 
-function _lane_payload(store::AbstractTenantAdminStore, ctx::TenantContext, payload)::Dict{Symbol,Any}
-    from_id = _uuid_value(_required_text(payload, "from_warehouse_id"))
-    to_id = _uuid_value(_required_text(payload, "to_warehouse_id"))
+function _lane_payload(store::AbstractTenantAdminStore, ctx::TenantContext, payload; current = nothing)::Dict{Symbol,Any}
+    from_id = current === nothing ? _uuid_value(_required_text(payload, "from_warehouse_id")) : _uuid_value(something(_optional_text(payload, "from_warehouse_id"), current[:from_warehouse_id]))
+    to_id = current === nothing ? _uuid_value(_required_text(payload, "to_warehouse_id")) : _uuid_value(something(_optional_text(payload, "to_warehouse_id"), current[:to_warehouse_id]))
     from_id == to_id && throw(ApiError("VALIDATION_ERROR", "from_warehouse_id and to_warehouse_id must differ"; status = 400))
     fetch_warehouse(store, ctx.tenant_id, from_id) === nothing && throw(ApiError("VALIDATION_ERROR", "from_warehouse_id must belong to tenant"; status = 400))
     fetch_warehouse(store, ctx.tenant_id, to_id) === nothing && throw(ApiError("VALIDATION_ERROR", "to_warehouse_id must belong to tenant"; status = 400))
-    lead_time = _validate_nonnegative("lead_time_days", _optional_int(payload, "lead_time_days", 0))
-    cost = _validate_nonnegative("cost_per_unit_cents", _optional_int(payload, "cost_per_unit_cents", 0))
-    capacity = _optional_nullable_decimal(payload, "capacity_units_day", nothing)
+    lead_time = _validate_nonnegative("lead_time_days", _optional_int(payload, "lead_time_days", current === nothing ? 0 : current[:lead_time_days]))
+    cost = _validate_nonnegative("cost_per_unit_cents", _optional_int(payload, "cost_per_unit_cents", current === nothing ? 0 : current[:cost_per_unit_cents]))
+    capacity = _optional_nullable_decimal(payload, "capacity_units_day", current === nothing ? nothing : current[:capacity_units_day])
     capacity !== nothing && _validate_nonnegative("capacity_units_day", capacity)
     return Dict{Symbol,Any}(
-        :id => uuid4(), :tenant_id => ctx.tenant_id, :from_warehouse_id => from_id, :to_warehouse_id => to_id,
+        :id => current === nothing ? uuid4() : current[:id], :tenant_id => ctx.tenant_id, :from_warehouse_id => from_id, :to_warehouse_id => to_id,
         :lead_time_days => Int(lead_time), :cost_per_unit_cents => Int(cost), :capacity_units_day => capacity,
-        :active => something(_optional_bool(payload, "active"), true),
+        :active => something(_optional_bool(payload, "active"), current === nothing ? true : current[:active]),
     )
 end
 
-function _policy_payload(ctx::TenantContext, payload)::Dict{Symbol,Any}
-    horizon = _optional_int(payload, "planning_horizon_days", 0)
+function _policy_payload(ctx::TenantContext, payload; current = nothing)::Dict{Symbol,Any}
+    horizon = _optional_int(payload, "planning_horizon_days", current === nothing ? 0 : current[:planning_horizon_days])
     (1 <= horizon <= 180) || throw(ApiError("VALIDATION_ERROR", "planning_horizon_days must be between 1 and 180"; status = 400))
-    service = _optional_decimal(payload, "service_level_target", 0)
+    service = _optional_decimal(payload, "service_level_target", current === nothing ? 0 : current[:service_level_target])
     (0 < service <= 1) || throw(ApiError("VALIDATION_ERROR", "service_level_target must be greater than zero and at most one"; status = 400))
     max_cost = _payload_get(payload, "max_transfer_cost_cents", nothing)
-    parsed_max_cost = max_cost === nothing ? nothing : _validate_nonnegative("max_transfer_cost_cents", max_cost isa Integer ? Int(max_cost) : something(tryparse(Int, strip(String(max_cost))), -1))
+    parsed_max_cost = max_cost === nothing ? (current === nothing ? nothing : current[:max_transfer_cost_cents]) : _validate_nonnegative("max_transfer_cost_cents", max_cost isa Integer ? Int(max_cost) : something(tryparse(Int, strip(String(max_cost))), -1))
     return Dict{Symbol,Any}(
-        :id => uuid4(), :tenant_id => ctx.tenant_id, :name => _required_text(payload, "name"),
-        :objective => _validate_choice("objective", _required_text(payload, "objective"), POLICY_OBJECTIVES),
+        :id => current === nothing ? uuid4() : current[:id], :tenant_id => ctx.tenant_id,
+        :name => current === nothing ? _required_text(payload, "name") : something(_optional_text(payload, "name"), current[:name]),
+        :objective => _validate_choice("objective", current === nothing ? _required_text(payload, "objective") : something(_optional_text(payload, "objective"), current[:objective]), POLICY_OBJECTIVES),
         :planning_horizon_days => Int(horizon), :service_level_target => Float64(service),
-        :max_transfer_cost_cents => parsed_max_cost, :allow_cross_region => something(_optional_bool(payload, "allow_cross_region"), true),
-        :frozen_until => _optional_date(payload, "frozen_until", nothing), :config => _optional_json_object(payload, "config", Dict{String,Any}()),
-        :status => _validate_choice("status", _required_text(payload, "status"), POLICY_STATUSES),
+        :max_transfer_cost_cents => parsed_max_cost, :allow_cross_region => something(_optional_bool(payload, "allow_cross_region"), current === nothing ? true : current[:allow_cross_region]),
+        :frozen_until => _optional_date(payload, "frozen_until", current === nothing ? nothing : current[:frozen_until]), :config => _optional_json_object(payload, "config", current === nothing ? Dict{String,Any}() : current[:config]),
+        :status => _validate_choice("status", current === nothing ? _required_text(payload, "status") : something(_optional_text(payload, "status"), current[:status]), POLICY_STATUSES),
     )
 end

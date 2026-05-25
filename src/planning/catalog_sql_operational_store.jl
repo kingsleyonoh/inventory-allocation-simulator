@@ -101,6 +101,28 @@ function persist_transfer_lane_create!(store::SqlTenantAdminStore, row)
     return row
 end
 
+function fetch_transfer_lane(store::SqlTenantAdminStore, tenant_id::UUID, lane_id::UUID)
+    result = LibPQ.execute(store.connection, """
+        SELECT id, tenant_id, from_warehouse_id, to_warehouse_id, lead_time_days, cost_per_unit_cents, capacity_units_day, active
+        FROM transfer_lanes WHERE tenant_id = \$1 AND id = \$2 LIMIT 1
+    """, [string(tenant_id), string(lane_id)])
+    isempty(result) && return nothing
+    return _sql_lane_row(first(result))
+end
+
+function persist_transfer_lane_update!(store::SqlTenantAdminStore, row)
+    try
+        LibPQ.execute(store.connection, """
+            UPDATE transfer_lanes
+            SET from_warehouse_id = \$3, to_warehouse_id = \$4, lead_time_days = \$5, cost_per_unit_cents = \$6, capacity_units_day = \$7, active = \$8, updated_at = now()
+            WHERE tenant_id = \$1 AND id = \$2
+        """, [string(row[:tenant_id]), string(row[:id]), string(row[:from_warehouse_id]), string(row[:to_warehouse_id]), row[:lead_time_days], row[:cost_per_unit_cents], _sql_null(row[:capacity_units_day]), row[:active]])
+    catch err
+        throw(ApiError("CONFLICT", "Transfer lane already exists for tenant"; status = 409))
+    end
+    return row
+end
+
 function _sql_policy_row(row)::Dict{Symbol,Any}
     config_value = _is_nullish(row[10]) ? Dict{String,Any}() : JSON3.read(String(row[10]))
     return Dict{Symbol,Any}(
@@ -129,6 +151,28 @@ function persist_allocation_policy_create!(store::SqlTenantAdminStore, row)
             INSERT INTO allocation_policies (id, tenant_id, name, objective, planning_horizon_days, service_level_target, max_transfer_cost_cents, allow_cross_region, frozen_until, config, status)
             VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10::jsonb, \$11)
         """, [string(row[:id]), string(row[:tenant_id]), row[:name], row[:objective], row[:planning_horizon_days], row[:service_level_target], _sql_null(row[:max_transfer_cost_cents]), row[:allow_cross_region], _sql_null(row[:frozen_until]), JSON3.write(row[:config]), row[:status]])
+    catch err
+        throw(ApiError("CONFLICT", "Allocation policy name already exists for tenant"; status = 409))
+    end
+    return row
+end
+
+function fetch_allocation_policy(store::SqlTenantAdminStore, tenant_id::UUID, policy_id::UUID)
+    result = LibPQ.execute(store.connection, """
+        SELECT id, tenant_id, name, objective, planning_horizon_days, service_level_target, max_transfer_cost_cents, allow_cross_region, frozen_until, config, status
+        FROM allocation_policies WHERE tenant_id = \$1 AND id = \$2 LIMIT 1
+    """, [string(tenant_id), string(policy_id)])
+    isempty(result) && return nothing
+    return _sql_policy_row(first(result))
+end
+
+function persist_allocation_policy_update!(store::SqlTenantAdminStore, row)
+    try
+        LibPQ.execute(store.connection, """
+            UPDATE allocation_policies
+            SET name = \$3, objective = \$4, planning_horizon_days = \$5, service_level_target = \$6, max_transfer_cost_cents = \$7, allow_cross_region = \$8, frozen_until = \$9, config = \$10::jsonb, status = \$11, updated_at = now()
+            WHERE tenant_id = \$1 AND id = \$2
+        """, [string(row[:tenant_id]), string(row[:id]), row[:name], row[:objective], row[:planning_horizon_days], row[:service_level_target], _sql_null(row[:max_transfer_cost_cents]), row[:allow_cross_region], _sql_null(row[:frozen_until]), JSON3.write(row[:config]), row[:status]])
     catch err
         throw(ApiError("CONFLICT", "Allocation policy name already exists for tenant"; status = 409))
     end

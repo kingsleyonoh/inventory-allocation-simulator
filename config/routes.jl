@@ -23,6 +23,22 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/skus", "skus_page"),
         RouteDefinition(:POST, "/skus", "skus_create_form"),
         RouteDefinition(:POST, "/skus/:id", "skus_update_form"),
+        RouteDefinition(:GET, "/lanes", "lanes_page"),
+        RouteDefinition(:POST, "/lanes", "lanes_create_form"),
+        RouteDefinition(:POST, "/lanes/:id", "lanes_update_form"),
+        RouteDefinition(:GET, "/policies", "policies_page"),
+        RouteDefinition(:POST, "/policies", "policies_create_form"),
+        RouteDefinition(:POST, "/policies/:id", "policies_update_form"),
+        RouteDefinition(:GET, "/settings", "settings_page"),
+        RouteDefinition(:POST, "/settings", "settings_update_form"),
+        RouteDefinition(:POST, "/settings/users", "settings_users_create_form"),
+        RouteDefinition(:POST, "/settings/users/:id", "settings_users_update_form"),
+        RouteDefinition(:POST, "/settings/api-key/rotate", "settings_api_key_rotate_form"),
+        RouteDefinition(:GET, "/simulations", "simulations_page"),
+        RouteDefinition(:POST, "/simulations", "simulations_create_form"),
+        RouteDefinition(:GET, "/simulations/:id", "simulations_detail_page"),
+        RouteDefinition(:POST, "/simulations/:id/cancel", "simulations_cancel_form"),
+        RouteDefinition(:GET, "/recommendations/:id", "recommendation_detail_page"),
         RouteDefinition(:POST, "/api/tenants/register", "tenant_register"),
         RouteDefinition(:GET, "/tenants/me", "tenant_me"),
         RouteDefinition(:GET, "/api/settings/tenant", "tenant_settings_read"),
@@ -131,6 +147,54 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/skus/:id"; method = POST) do
             handle_update_sku_form(services)
+        end
+        route("/lanes"; method = GET) do
+            handle_lanes_page(services)
+        end
+        route("/lanes"; method = POST) do
+            handle_create_lane_form(services)
+        end
+        route("/lanes/:id"; method = POST) do
+            handle_update_lane_form(services)
+        end
+        route("/policies"; method = GET) do
+            handle_policies_page(services)
+        end
+        route("/policies"; method = POST) do
+            handle_create_policy_form(services)
+        end
+        route("/policies/:id"; method = POST) do
+            handle_update_policy_form(services)
+        end
+        route("/settings"; method = GET) do
+            handle_settings_page(services)
+        end
+        route("/settings"; method = POST) do
+            handle_update_settings_form(services)
+        end
+        route("/settings/users"; method = POST) do
+            handle_create_user_form(services)
+        end
+        route("/settings/users/:id"; method = POST) do
+            handle_update_user_form(services)
+        end
+        route("/settings/api-key/rotate"; method = POST) do
+            handle_rotate_api_key_form(services)
+        end
+        route("/simulations"; method = GET) do
+            handle_simulations_page(services)
+        end
+        route("/simulations"; method = POST) do
+            handle_create_simulation_form(services)
+        end
+        route("/simulations/:id"; method = GET) do
+            handle_simulation_detail_page(services)
+        end
+        route("/simulations/:id/cancel"; method = POST) do
+            handle_cancel_simulation_form(services)
+        end
+        route("/recommendations/:id"; method = GET) do
+            handle_recommendation_detail_page(services)
         end
         route("/api/tenants/register"; method = POST) do
             handle_register_tenant(services)

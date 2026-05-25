@@ -115,6 +115,19 @@ function create_transfer_lane!(store::AbstractTenantAdminStore, ctx::TenantConte
     return _lane_response(row)
 end
 
+function update_transfer_lane!(store::AbstractTenantAdminStore, ctx::TenantContext, lane_id, payload)::NamedTuple
+    authorize!(ctx, PLANNING_WRITE_ACTION, PLANNING_RESOURCE)
+    current = fetch_transfer_lane(store, ctx.tenant_id, _uuid_value(lane_id))
+    current === nothing && throw(ApiError("NOT_FOUND", "Transfer lane not found"; status = 404))
+    row = _lane_payload(store, ctx, payload; current = current)
+    persist_transfer_lane_update!(store, row)
+    return _lane_response(row)
+end
+
+function deactivate_transfer_lane!(store::AbstractTenantAdminStore, ctx::TenantContext, lane_id)::NamedTuple
+    return update_transfer_lane!(store, ctx, lane_id, Dict("active" => false))
+end
+
 function list_allocation_policies(store::AbstractTenantAdminStore, ctx::TenantContext; params = Dict{String,String}())::NamedTuple
     authorize!(ctx, PLANNING_READ_ACTION, PLANNING_RESOURCE)
     page = parse_cursor_params(params; allowed_filters = Set(["status"]))
@@ -127,4 +140,17 @@ function create_allocation_policy!(store::AbstractTenantAdminStore, ctx::TenantC
     row = _policy_payload(ctx, payload)
     persist_allocation_policy_create!(store, row)
     return _policy_response(row)
+end
+
+function update_allocation_policy!(store::AbstractTenantAdminStore, ctx::TenantContext, policy_id, payload)::NamedTuple
+    authorize!(ctx, "manage", "policy")
+    current = fetch_allocation_policy(store, ctx.tenant_id, _uuid_value(policy_id))
+    current === nothing && throw(ApiError("NOT_FOUND", "Allocation policy not found"; status = 404))
+    row = _policy_payload(ctx, payload; current = current)
+    persist_allocation_policy_update!(store, row)
+    return _policy_response(row)
+end
+
+function archive_allocation_policy!(store::AbstractTenantAdminStore, ctx::TenantContext, policy_id)::NamedTuple
+    return update_allocation_policy!(store, ctx, policy_id, Dict("status" => "archived"))
 end

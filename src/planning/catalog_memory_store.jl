@@ -110,6 +110,20 @@ function persist_transfer_lane_create!(store::MemoryTenantAdminStore, row)
     return row
 end
 
+function fetch_transfer_lane(store::MemoryTenantAdminStore, tenant_id::UUID, lane_id::UUID)
+    row = get(store.transfer_lanes, lane_id, nothing)
+    row === nothing && return nothing
+    return row[:tenant_id] == tenant_id ? row : nothing
+end
+
+function persist_transfer_lane_update!(store::MemoryTenantAdminStore, row)
+    if any(existing -> existing[:id] != row[:id] && existing[:tenant_id] == row[:tenant_id] && existing[:from_warehouse_id] == row[:from_warehouse_id] && existing[:to_warehouse_id] == row[:to_warehouse_id], values(store.transfer_lanes))
+        throw(ApiError("CONFLICT", "Transfer lane already exists for tenant"; status = 409))
+    end
+    store.transfer_lanes[row[:id]] = row
+    return row
+end
+
 function fetch_allocation_policies(store::MemoryTenantAdminStore, tenant_id::UUID, page::CursorPageRequest)
     rows = [row for row in values(store.allocation_policies) if row[:tenant_id] == tenant_id]
     if haskey(page.filters, "status")
@@ -121,6 +135,20 @@ end
 
 function persist_allocation_policy_create!(store::MemoryTenantAdminStore, row)
     if any(existing -> existing[:tenant_id] == row[:tenant_id] && existing[:name] == row[:name], values(store.allocation_policies))
+        throw(ApiError("CONFLICT", "Allocation policy name already exists for tenant"; status = 409))
+    end
+    store.allocation_policies[row[:id]] = row
+    return row
+end
+
+function fetch_allocation_policy(store::MemoryTenantAdminStore, tenant_id::UUID, policy_id::UUID)
+    row = get(store.allocation_policies, policy_id, nothing)
+    row === nothing && return nothing
+    return row[:tenant_id] == tenant_id ? row : nothing
+end
+
+function persist_allocation_policy_update!(store::MemoryTenantAdminStore, row)
+    if any(existing -> existing[:id] != row[:id] && existing[:tenant_id] == row[:tenant_id] && existing[:name] == row[:name], values(store.allocation_policies))
         throw(ApiError("CONFLICT", "Allocation policy name already exists for tenant"; status = 409))
     end
     store.allocation_policies[row[:id]] = row

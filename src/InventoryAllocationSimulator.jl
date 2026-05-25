@@ -34,6 +34,7 @@ include("web/controllers/tenant_admin_controller.jl")
 include("web/controllers/planning_catalog_controller.jl")
 include("web/controllers/simulation_controller.jl")
 include("web/controllers/ui_controller.jl")
+include("web/controllers/ui_batch027_controller.jl")
 include("imports/demo_seed.jl")
 include("../config/routes.jl")
 
@@ -64,6 +65,7 @@ export run_daily_backtest!, run_daily_backtests!, daily_backtest_due, persist_po
 export fetch_demand_history, build_job_service, run_due_daily_backtest!
 export create_import_job!, get_import_result, claim_next_import_job!, process_import_job!, import_job_worker!
 export render_login_page, render_protected_route_notice, render_dashboard_page, render_import_center_page, render_warehouses_page, render_skus_page, authenticate_ui_login!
+export render_transfer_lanes_page, render_allocation_policies_page, render_tenant_settings_page, render_simulations_page, render_simulation_detail_page, render_recommendation_detail_page
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli
