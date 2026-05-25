@@ -25,6 +25,7 @@ include("planning/scenarios.jl")
 include("solver/model_builder.jl")
 include("planning/simulations.jl")
 include("planning/backtests.jl")
+include("recommendations/decisions.jl")
 include("imports/importer.jl")
 include("jobs/locks.jl")
 include("jobs/worker.jl")
@@ -33,6 +34,7 @@ include("services.jl")
 include("web/controllers/tenant_admin_controller.jl")
 include("web/controllers/planning_catalog_controller.jl")
 include("web/controllers/simulation_controller.jl")
+include("web/controllers/recommendation_controller.jl")
 include("web/controllers/ui_controller.jl")
 include("web/controllers/ui_batch027_controller.jl")
 include("imports/demo_seed.jl")
@@ -60,6 +62,7 @@ export list_transfer_lanes, create_transfer_lane!, list_allocation_policies, cre
 export capture_simulation_input_snapshot, clean_demand_history, forecast_preview
 export AllocationSolverConfig, solve_allocation_model, solver_outcome_decision, recommendation_net_value, generate_allocation_recommendations!
 export create_simulation_run!, list_simulation_runs, get_simulation_run, cancel_simulation_run!
+export list_recommendations, get_recommendation, approve_recommendation!, reject_recommendation!, expire_recommendation!, export_recommendation!
 export claim_next_simulation_run!, claim_next_simulation_run_for_system!, simulation_worker!, reap_stale_simulation_runs!, generate_demand_scenarios!
 export run_daily_backtest!, run_daily_backtests!, daily_backtest_due, persist_policy_backtest_results!
 export fetch_demand_history, build_job_service, run_due_daily_backtest!

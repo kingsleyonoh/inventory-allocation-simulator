@@ -198,7 +198,7 @@ end
     @test occursin("Approve", html)
     @test occursin("Reject", html)
     @test occursin("Export CSV", html)
-    @test occursin("aria-disabled=\"true\"", html)
+    @test occursin("/api/recommendations/$(rec[:id])/approve", html)
     @test !occursin("Kōwhai", html)
 
     @test_throws ApiError render_recommendation_detail_page(store, BATCH012_VIEWER_A, string(UUID("d0000000-0000-4000-8000-000000000099")))

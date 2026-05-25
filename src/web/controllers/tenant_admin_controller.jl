@@ -35,6 +35,12 @@ end
 function _json_body()
     payload = Requests.jsonpayload()
     payload !== nothing && return payload
+    form = try
+        Requests.postpayload()
+    catch
+        Dict{String,Any}()
+    end
+    isempty(form) || return form
     raw = strip(Requests.rawpayload())
     isempty(raw) && return Dict{String,Any}()
     parsed = try

@@ -39,6 +39,12 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/simulations/:id", "simulations_detail_page"),
         RouteDefinition(:POST, "/simulations/:id/cancel", "simulations_cancel_form"),
         RouteDefinition(:GET, "/recommendations/:id", "recommendation_detail_page"),
+        RouteDefinition(:GET, "/api/recommendations", "recommendations_list"),
+        RouteDefinition(:GET, "/api/recommendations/:id", "recommendations_get"),
+        RouteDefinition(:POST, "/api/recommendations/:id/approve", "recommendations_approve"),
+        RouteDefinition(:POST, "/api/recommendations/:id/reject", "recommendations_reject"),
+        RouteDefinition(:POST, "/api/recommendations/:id/expire", "recommendations_expire"),
+        RouteDefinition(:POST, "/api/recommendations/:id/export", "recommendations_export"),
         RouteDefinition(:POST, "/api/tenants/register", "tenant_register"),
         RouteDefinition(:GET, "/tenants/me", "tenant_me"),
         RouteDefinition(:GET, "/api/settings/tenant", "tenant_settings_read"),
@@ -288,6 +294,24 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/api/imports/:id"; method = GET) do
             handle_get_import_result(services)
+        end
+        route("/api/recommendations"; method = GET) do
+            handle_list_recommendations(services)
+        end
+        route("/api/recommendations/:id"; method = GET) do
+            handle_get_recommendation(services)
+        end
+        route("/api/recommendations/:id/approve"; method = POST) do
+            handle_approve_recommendation(services)
+        end
+        route("/api/recommendations/:id/reject"; method = POST) do
+            handle_reject_recommendation(services)
+        end
+        route("/api/recommendations/:id/expire"; method = POST) do
+            handle_expire_recommendation(services)
+        end
+        route("/api/recommendations/:id/export"; method = POST) do
+            handle_export_recommendation(services)
         end
     end
 

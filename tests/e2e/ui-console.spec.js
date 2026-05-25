@@ -44,12 +44,22 @@ test.describe('operations console UI over real HTTP', () => {
       ['/settings/api-key/rotate', {}, /\/login\?next=%2Fsettings$/],
       ['/simulations', { name: 'Morning run' }, /\/login\?next=%2Fsimulations$/],
       ['/simulations/00000000-0000-4000-8000-000000000000/cancel', {}, /\/login\?next=%2Fsimulations$/],
+      ['/api/recommendations/00000000-0000-4000-8000-000000000000/approve', { reason: 'approve' }, undefined],
+      ['/api/recommendations/00000000-0000-4000-8000-000000000000/reject', { reason: 'reject' }, undefined],
+      ['/api/recommendations/00000000-0000-4000-8000-000000000000/expire', { reason: 'expire' }, undefined],
+      ['/api/recommendations/00000000-0000-4000-8000-000000000000/export', { reason: 'export' }, undefined],
     ];
 
     for (const [url, form, expectedLocation] of formRoutes) {
       const response = await request.post(url, { form, maxRedirects: 0 });
-      expect(response.status(), `POST ${url} status`).toBe(303);
-      expect(response.headers().location, `POST ${url} redirect`).toMatch(expectedLocation);
+      if (expectedLocation === undefined) {
+        expect(response.status(), `POST ${url} status`).toBe(401);
+        const body = await response.json();
+        expect(body.error.code, `POST ${url} error code`).toBe('UNAUTHORIZED');
+      } else {
+        expect(response.status(), `POST ${url} status`).toBe(303);
+        expect(response.headers().location, `POST ${url} redirect`).toMatch(expectedLocation);
+      }
     }
   });
 });
