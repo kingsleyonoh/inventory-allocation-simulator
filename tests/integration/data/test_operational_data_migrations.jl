@@ -49,7 +49,7 @@ end
         "name text not null",
         "status text not null check (status in ('queued', 'running', 'completed', 'failed', 'cancelled'))",
         "input_snapshot jsonb not null",
-        "scenario_count integer not null default 0",
+        "scenario_count integer not null default 100 check (scenario_count between 1 and 100)",
         "started_at timestamp null",
         "completed_at timestamp null",
         "error_message text null",

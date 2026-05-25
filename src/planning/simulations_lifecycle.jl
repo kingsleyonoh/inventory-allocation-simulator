@@ -1,8 +1,11 @@
 const SIMULATION_STATUSES = Set(["queued", "running", "completed", "failed", "cancelled"])
+const DEFAULT_SIMULATION_SCENARIO_COUNT = 100
+const MAX_SIMULATION_SCENARIO_COUNT = 100
 
 function _simulation_count(payload)::Int
-    count = _optional_int(payload, "scenario_count", 100)
+    count = _optional_int(payload, "scenario_count", DEFAULT_SIMULATION_SCENARIO_COUNT)
     count > 0 || throw(ApiError("VALIDATION_ERROR", "scenario_count must be greater than zero"; status = 400))
+    count <= MAX_SIMULATION_SCENARIO_COUNT || throw(ApiError("VALIDATION_ERROR", "scenario_count must be at most $(MAX_SIMULATION_SCENARIO_COUNT)"; status = 400))
     return count
 end
 
@@ -45,6 +48,7 @@ function create_simulation_run!(
     end
     policy_id = _uuid_value(_required_text(payload, "policy_id"))
     name = _required_text(payload, "name")
+    scenario_count = _simulation_count(payload)
     snapshot = capture_simulation_input_snapshot(store, ctx, policy_id)
     now = Dates.now()
     row = Dict{Symbol,Any}(
@@ -54,7 +58,7 @@ function create_simulation_run!(
         :name => name,
         :status => "queued",
         :input_snapshot => snapshot,
-        :scenario_count => _simulation_count(payload),
+        :scenario_count => scenario_count,
         :started_at => nothing,
         :completed_at => nothing,
         :error_message => nothing,
@@ -144,8 +148,11 @@ function fail_simulation_run!(store::AbstractTenantAdminStore, row, message::Abs
 end
 
 function _simulation_failure_message(err)::String
+    if !(err isa ApiError)
+        return "Internal simulation worker error"
+    end
     message = sprint(showerror, err)
-    if err isa ApiError && !isempty(err.details)
+    if !isempty(err.details)
         return string(message, " details=", JSON3.write(err.details))
     end
     return message

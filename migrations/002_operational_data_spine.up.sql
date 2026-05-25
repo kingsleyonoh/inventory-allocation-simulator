@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS simulation_runs (
     name TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
     input_snapshot JSONB NOT NULL,
-    scenario_count INTEGER NOT NULL DEFAULT 0,
+    scenario_count INTEGER NOT NULL DEFAULT 100 CHECK (scenario_count BETWEEN 1 AND 100),
     started_at TIMESTAMP NULL,
     completed_at TIMESTAMP NULL,
     error_message TEXT NULL,

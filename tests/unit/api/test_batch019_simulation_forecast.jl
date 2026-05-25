@@ -58,6 +58,9 @@ end
     store = batch012_store()
     policy_id = "b0000000-0000-4000-8000-000000000001"
 
+    @test_throws ApiError create_simulation_run!(store, BATCH012_PLANNER_A, Dict("policy_id" => policy_id, "name" => "Unbounded", "scenario_count" => 1_000_001))
+    @test isempty(store.simulation_runs)
+
     run = create_simulation_run!(store, BATCH012_PLANNER_A, Dict("policy_id" => policy_id, "name" => "Batch 019 replay", "scenario_count" => 4); idempotency_key = "batch-019-key")
     duplicate = create_simulation_run!(store, BATCH012_PLANNER_A, Dict("policy_id" => policy_id, "name" => "Batch 019 replay", "scenario_count" => 4); idempotency_key = "batch-019-key")
     @test run.id == duplicate.id
@@ -118,6 +121,27 @@ end
     @test occursin("stale", get_simulation_run(store, BATCH012_VIEWER_A, stale.id).error_message)
 end
 
+@testset "Simulation worker failure messages are safe for tenant-visible run detail" begin
+    unsafe = ErrorException("Stacktrace: src/planning/simulations_sql_store.jl DATABASE_URL credentials exposed")
+    message = InventoryAllocationSimulator._simulation_failure_message(unsafe)
+    @test message == "Internal simulation worker error"
+    @test !occursin("Stacktrace", message)
+    @test !occursin("DATABASE_URL", message)
+    @test !occursin("credentials", message)
+    @test !occursin("src/planning", message)
+
+    solver_error = ApiError(
+        "SOLVER_FAILED",
+        "solver did not produce an acceptable solution";
+        details = [Dict("constraint_report" => ["sender safety stock hard requirement"])],
+        status = 422,
+    )
+    solver_message = InventoryAllocationSimulator._simulation_failure_message(solver_error)
+    @test occursin("SOLVER_FAILED", solver_message)
+    @test occursin("constraint_report", solver_message)
+    @test occursin("sender safety stock", solver_message)
+end
+
 @testset "Stockout-aware demand cleaning prevents low-demand forecasts" begin
     store = batch019_stockout_store()
     preview = forecast_preview(store, BATCH012_VIEWER_A, UUID("b0000000-0000-4000-8000-000000000001"); scenario_count = 3)
@@ -158,6 +182,10 @@ end
 @testset "SQL simulation idempotency and worker paths are production-wired" begin
     migration = replace(lowercase(read(joinpath(project_root(), "migrations", "002_operational_data_spine.up.sql"), String)), r"\s+" => " ")
     @test occursin("idempotency_key text null", migration)
+    @test occursin("scenario_count integer not null default 100 check (scenario_count between 1 and 100)", migration)
+    scenario_cap_migration = replace(lowercase(read(joinpath(project_root(), "migrations", "005_simulation_scenario_count_cap.up.sql"), String)), r"\s+" => " ")
+    @test occursin("add constraint simulation_runs_scenario_count_bounds check (scenario_count between 1 and 100)", scenario_cap_migration)
+    @test occursin("where scenario_count < 1 or scenario_count > 100", scenario_cap_migration)
     @test occursin("create unique index if not exists simulation_runs_tenant_idempotency_key_idx on simulation_runs (tenant_id, idempotency_key) where idempotency_key is not null", migration)
 
     simulation_sources = [
