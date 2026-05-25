@@ -12,6 +12,17 @@ function route_definitions()::Vector{RouteDefinition}
     return [
         RouteDefinition(:GET, "/health", "health"),
         RouteDefinition(:GET, "/health/db", "health_db"),
+        RouteDefinition(:GET, "/login", "login_page"),
+        RouteDefinition(:POST, "/login", "login_create"),
+        RouteDefinition(:POST, "/logout", "logout"),
+        RouteDefinition(:GET, "/dashboard", "dashboard"),
+        RouteDefinition(:GET, "/imports", "imports_page"),
+        RouteDefinition(:GET, "/warehouses", "warehouses_page"),
+        RouteDefinition(:POST, "/warehouses", "warehouses_create_form"),
+        RouteDefinition(:POST, "/warehouses/:id", "warehouses_update_form"),
+        RouteDefinition(:GET, "/skus", "skus_page"),
+        RouteDefinition(:POST, "/skus", "skus_create_form"),
+        RouteDefinition(:POST, "/skus/:id", "skus_update_form"),
         RouteDefinition(:POST, "/api/tenants/register", "tenant_register"),
         RouteDefinition(:GET, "/tenants/me", "tenant_me"),
         RouteDefinition(:GET, "/api/settings/tenant", "tenant_settings_read"),
@@ -88,6 +99,39 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
     end
 
     if services !== nothing
+        route("/login"; method = GET) do
+            handle_login_page(services)
+        end
+        route("/login"; method = POST) do
+            handle_login(services)
+        end
+        route("/logout"; method = POST) do
+            handle_logout(services)
+        end
+        route("/dashboard"; method = GET) do
+            handle_dashboard(services)
+        end
+        route("/imports"; method = GET) do
+            handle_imports_page(services)
+        end
+        route("/warehouses"; method = GET) do
+            handle_warehouses_page(services)
+        end
+        route("/warehouses"; method = POST) do
+            handle_create_warehouse_form(services)
+        end
+        route("/warehouses/:id"; method = POST) do
+            handle_update_warehouse_form(services)
+        end
+        route("/skus"; method = GET) do
+            handle_skus_page(services)
+        end
+        route("/skus"; method = POST) do
+            handle_create_sku_form(services)
+        end
+        route("/skus/:id"; method = POST) do
+            handle_update_sku_form(services)
+        end
         route("/api/tenants/register"; method = POST) do
             handle_register_tenant(services)
         end
