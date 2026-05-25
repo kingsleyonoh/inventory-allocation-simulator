@@ -498,8 +498,10 @@ async function makeBatch(cwd: string, config: RuntimeConfig, scope: YoloScope): 
   const scopeText = scope.mode === "count" ? `next ${scope.target}` : scope.mode === "phase" ? `phase ${scope.target}` : "full";
   const selected = selectBatch(items, config.maxBatchSize, scopeText);
   const batchNumber = await nextBatchNumber(cwd);
-  const support = scope.mode === "full" ? await nextSupportPlan(cwd, items) : null;
-  const routed = support ? { items: [support.item], entries: [], mode: "none" as const, gate: { name: "inbox", passed: true, flags: [`SUPPORT_WORKFLOW:${support.kind}`, `SUPPORT_SCOPE:${support.scope}`] } } : await routeInboxWithAi(cwd, batchNumber, selected, await readPendingInbox(cwd), config);
+  const pendingInbox = await readPendingInbox(cwd);
+  const hasHighInbox = pendingInbox.some((entry) => entry.priority === "HIGH");
+  const support = scope.mode === "full" && !hasHighInbox ? await nextSupportPlan(cwd, items) : null;
+  const routed = support ? { items: [support.item], entries: [], mode: "none" as const, gate: { name: "inbox", passed: true, flags: [`SUPPORT_WORKFLOW:${support.kind}`, `SUPPORT_SCOPE:${support.scope}`] } } : await routeInboxWithAi(cwd, batchNumber, selected, pendingInbox, config);
   const batch = applySupportPlan({ number: batchNumber, items: routed.items, type: classifyBatchType(routed.items) }, support);
   if (batch.items.length > 0) await writeInboxRouteGate(cwd, batch, routed.gate);
   return batch;

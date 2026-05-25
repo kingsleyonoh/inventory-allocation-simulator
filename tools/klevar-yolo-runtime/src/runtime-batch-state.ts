@@ -57,7 +57,7 @@ export async function writeRuntimeBatchState(cwd: string, state: RuntimeBatchSta
 export async function importAgentResultToState(cwd: string, batch: Batch, source: string, raw: BatchResult, previous?: RuntimeBatchState): Promise<RuntimeBatchState> {
   const base = previous ?? await loadRuntimeBatchState(cwd, batch, raw);
   const result = canonicalizeBatchResultForRuntime(batch, raw, base.findings);
-  const findings = reconcileFindings([...base.findings, ...findingsFromResult(source, raw)], result);
+  const findings = closeFindingsOnSuccessfulResult(reconcileFindings([...base.findings, ...findingsFromResult(source, raw)], result), result, source);
   const commands = [...base.commands, ...commandsFromResult(source, result)];
   const state: RuntimeBatchState = {
     ...base,
@@ -175,6 +175,15 @@ function reconcileFindings(findings: RuntimeFinding[], result: BatchResult): Run
     if (fixedPrefixes.has(id) || [...fixedPrefixes].some((fixed) => id.includes(fixed) || fixed.includes(id))) byId.set(id, { ...finding, status: "fixed", lastCheckedAt: new Date().toISOString() });
   }
   return [...byId.values()];
+}
+
+function closeFindingsOnSuccessfulResult(findings: RuntimeFinding[], result: BatchResult, source: string): RuntimeFinding[] {
+  if (result.status !== "SUCCESS" || !["validate", "bugfix", "implement"].includes(source)) return findings;
+  const active = new Set([result.failureType, ...(result.flags ?? [])].filter((value): value is string => Boolean(value)));
+  const hasPassingEvidence = Object.values(result.tests ?? {}).some((evidence) => evidence && typeof evidence === "object" && "exitCode" in evidence && Number(evidence.exitCode) === 0);
+  if (!hasPassingEvidence) return findings;
+  const now = new Date().toISOString();
+  return findings.map((finding) => finding.status === "open" && !active.has(finding.id) ? { ...finding, status: "fixed" as const, evidence: [...new Set([...finding.evidence, `closed-by-${source}-success`])], lastCheckedAt: now } : finding);
 }
 
 function commandsFromResult(source: string, result: BatchResult): RuntimeCommandEvidence[] {

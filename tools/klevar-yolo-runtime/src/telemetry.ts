@@ -48,7 +48,7 @@ export async function setPhase(cwd: string, phase: RuntimePhase, message: string
   const checkpoint = checkpointForPhase(phase);
   const checkpointStatus: "failed" | "running" | "passed" = phase === "failed" ? "failed" : phase === "complete" ? "passed" : "running";
   const checkpoints = checkpoint ? { ...defaultCheckpoints(), ...(state.checkpoints ?? {}), [checkpoint]: checkpointStatus } : state.checkpoints;
-  await patchState(cwd, { ...(status ? { status } : {}), ...(checkpoints ? { checkpoints } : {}), phase, lastEvent: message, ...extra });
+  await patchState(cwd, { ...(status ? { status } : {}), ...(checkpoints ? { checkpoints } : {}), phase, lastEvent: message, ...extra, ...(extra.inspect ? { inspect: { ...(state.inspect ?? {}), ...extra.inspect } } : {}) });
   await appendEvent(cwd, { type: "phase", phase, message });
 }
 

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { validatePaths } from "../validators/path-validator.js";
 import { validateArtifacts } from "../validators/artifact-validator.js";
-import { blockingOpenFindings, canonicalizeBatchResultForRuntime, classifyBatchRisk, findingSummary, recordGateState } from "../runtime-batch-state.js";
+import { blockingOpenFindings, canonicalizeBatchResultForRuntime, classifyBatchRisk, findingSummary, importAgentResultToState, recordGateState } from "../runtime-batch-state.js";
 import { validationPolicyFor } from "../validation-policy.js";
 import { validateLocalOnlyFiles } from "../validators/local-only-validator.js";
 import { validateSecrets } from "../validators/secret-validator.js";
@@ -21,7 +21,7 @@ import { validateTdd } from "../validators/tdd-validator.js";
 import { validateE2e } from "../validators/e2e-validator.js";
 import { normalizeBatchResult, readBatchResult, readCanonicalBatchResult, validateContract } from "../result-contracts.js";
 import { buildCommandInvocation, normalizeCommand, execCommand, findBash } from "../util/process.js";
-import { nextBatchNumber } from "../util/git.js";
+import { nextBatchNumber, removeWindowsReservedDeviceFiles } from "../util/git.js";
 import { failRuntimeFromError, markHeartbeat, resetRuntimeState, setCheckpoint, setPhase } from "../telemetry.js";
 import { validateJournalContract } from "../journal-contract.js";
 import { validateAll, gatesPassed } from "../validators/index.js";
@@ -519,6 +519,18 @@ test("progress contract allows non-closeout audit verification items before phas
     "- [ ] [AUDIT] Phase 5 close-out — verify full PRD success criteria — PRD §15"
   ].join("\n"));
   assert.deepEqual(await validateProgressContract(dir), { name: "progress-contract", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("git commit cleanup removes Windows reserved device files before staging", async () => {
+  const dir = await tempDir();
+  await writeFile(join(dir, "NUL"), "accidental device file\n");
+  await mkdir(join(dir, "src"), { recursive: true });
+  await writeFile(join(dir, "src", "COM1.txt"), "reserved with extension\n");
+  const removed = await removeWindowsReservedDeviceFiles(dir);
+  assert.deepEqual(removed.sort(), ["NUL", "src/COM1.txt"].sort());
+  assert.equal(existsSync(join(dir, "NUL")), false);
+  assert.equal(existsSync(join(dir, "src", "COM1.txt")), false);
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -1290,7 +1302,7 @@ test("canonical runtime state drops placeholder artifacts and stale fixed flags"
   assert.ok(!canonical.flags.includes("FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS"));
 });
 
-test("canonical finding lifecycle closes previously open gate findings", () => {
+test("canonical finding lifecycle closes previously open gate findings", async () => {
   const batch = { number: 12, type: "implement", items: [progressItem("[UI]", "Form — PRD §8")] } as any;
   const base = canonicalizeBatchResultForRuntime(batch, implementResult({ flags: ["FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS"] }));
   const opened = recordGateState({ schemaVersion: 1, batch: 12, selectedItems: [], changedFiles: [], risk: { class: "medium", reasons: [] }, currentResult: base, findings: [], commands: [], gates: {}, updatedAt: new Date().toISOString() }, [{ name: "frontend", passed: false, flags: ["FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS"] }]);
@@ -1299,6 +1311,11 @@ test("canonical finding lifecycle closes previously open gate findings", () => {
   const closed = recordGateState({ ...opened, currentResult: fixedResult }, [{ name: "frontend", passed: true, flags: [] }]);
   assert.equal(blockingOpenFindings(closed).length, 0);
   assert.equal(findingSummary(closed).fixed, 1);
+  const dir = await tempDir();
+  await importAgentResultToState(dir, batch, "validate", { ...implementResult({ status: "FAILURE", failureType: "UNIMPLEMENTED_ASSIGNED_ITEM", flags: ["UNIMPLEMENTED_ASSIGNED_ITEM"] }), agent: "validate" });
+  const success = await importAgentResultToState(dir, batch, "validate", { ...implementResult({ status: "SUCCESS", flags: [], tests: { green: { command: "npm test", exitCode: 0, evidence: "fixed" } } }), agent: "validate" });
+  assert.equal(blockingOpenFindings(success).length, 0);
+  await rm(dir, { recursive: true, force: true });
 });
 
 test("validation policy classifies critical and low risk batches", () => {
@@ -2404,6 +2421,13 @@ test("runtime source keeps full and phase scopes as bounded iterative loops", as
   assert.doesNotMatch(source, /maxIterations/);
 });
 
+test("runtime source lets high-priority inbox preempt support workflow batches", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /const pendingInbox = await readPendingInbox\(cwd\)/);
+  assert.match(source, /const hasHighInbox = pendingInbox\.some\(\(entry\) => entry\.priority === "HIGH"\)/);
+  assert.match(source, /scope\.mode === "full" && !hasHighInbox \? await nextSupportPlan/);
+});
+
 test("runtime repairs missing closeout for committed manual batch evidence", async () => {
   const dir = await tempDir();
   await execCommand("git init && git config user.email test@example.com && git config user.name Test", dir, 30_000);
@@ -2451,14 +2475,16 @@ test("runtime state records support workflow metadata", async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-test("runtime telemetry records phase checkpoints", async () => {
+test("runtime telemetry records phase checkpoints and preserves inspect scope", async () => {
   const dir = await tempDir();
-  await resetRuntimeState(dir, 1, "full");
-  await setPhase(dir, "implement", "Implementing");
+  await resetRuntimeState(dir, 1, "phase 20");
+  await setPhase(dir, "implement", "Implementing", { inspect: { risk: "high" } });
   await setCheckpoint(dir, "runtimeGates", "passed");
   const state = JSON.parse(await readFileText(join(dir, ".yolo/runtime-state.json")));
   assert.equal(state.checkpoints.implement, "running");
   assert.equal(state.checkpoints.runtimeGates, "passed");
+  assert.equal(state.inspect.requestedScope, "phase 20");
+  assert.equal(state.inspect.risk, "high");
   await rm(dir, { recursive: true, force: true });
 });
 
