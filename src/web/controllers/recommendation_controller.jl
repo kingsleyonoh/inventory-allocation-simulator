@@ -1,4 +1,5 @@
 using Genie.Router
+using HTTP
 
 function handle_list_recommendations(services::AppServices)
     try
@@ -55,6 +56,17 @@ function handle_export_recommendation(services::AppServices)
         request = _enforce_route_rate_limit!(services, "POST", "/api/recommendations/:id/export")
         ctx, store = _protected_context_and_store(services; request = request)
         return _json_response(export_recommendation!(store, ctx, Router.params(:id), _json_body()))
+    catch err
+        return _error_response(err)
+    end
+end
+
+function handle_export_recommendation_csv(services::AppServices)
+    try
+        request = _enforce_route_rate_limit!(services, "GET", "/api/recommendations/:id/export.csv")
+        ctx, store = _protected_context_and_store(services; request = request)
+        csv = export_recommendation_csv(store, ctx, Router.params(:id))
+        return HTTP.Response(200, ["Content-Type" => csv.content_type, "Content-Disposition" => string("attachment; filename=\"", csv.filename, "\"")], csv.body)
     catch err
         return _error_response(err)
     end

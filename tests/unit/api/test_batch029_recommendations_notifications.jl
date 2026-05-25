@@ -134,11 +134,11 @@ end
     first_result = create_local_notifications!(store, event)
     second_result = create_local_notifications!(store, event)
 
-    @test first_result.created_count == 1
+    @test first_result.created_count == 2
     @test first_result.idempotent == false
     @test second_result.created_count == 0
     @test second_result.idempotent == true
-    @test length(store.local_notifications) == 1
+    @test length(store.local_notifications) == 2
     @test all(row -> row[:tenant_id] == BATCH012_TENANT_A, values(store.local_notifications))
     @test all(row -> row[:event_id] == "evt-rec-approved-029", values(store.local_notifications))
     @test Set(row[:severity] for row in values(store.local_notifications)) == Set(["warning"])
@@ -147,7 +147,7 @@ end
 @testset "Batch 029 notification SQL contract preserves tenant idempotency" begin
     source = read(joinpath(project_root(), "src", "notifications", "local_notifications.jl"), String)
     normalized = lowercase(replace(source, r"\s+" => " "))
-    @test occursin("on conflict (tenant_id, event_id)", normalized) || occursin("on conflict on constraint", normalized) || occursin(raw"where tenant_id = \$1", normalized)
+    @test occursin("on conflict (tenant_id, event_id, user_id)", normalized) || occursin("on conflict on constraint", normalized) || occursin(raw"where tenant_id = \$1", normalized)
     @test occursin(raw"tenant_id = \$1", normalized)
     @test occursin("notification_inventory", normalized)
     @test occursin("notification_opt_outs", normalized)

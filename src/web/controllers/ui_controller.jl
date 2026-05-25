@@ -17,7 +17,7 @@ function _next_param(path::AbstractString)::String
     return replace(HTTP.URIs.escapeuri(String(path)), "/" => "%2F")
 end
 
-const UI_NEXT_ALLOWLIST = Set(["/dashboard", "/imports", "/warehouses", "/skus", "/lanes", "/policies", "/settings", "/simulations"])
+const UI_NEXT_ALLOWLIST = Set(["/dashboard", "/imports", "/warehouses", "/skus", "/lanes", "/policies", "/settings", "/simulations", "/notifications"])
 
 function _safe_ui_next(value)::String
     raw = strip(String(value))
@@ -45,7 +45,7 @@ function _app_shell(title::AbstractString, body::AbstractString; active::Abstrac
         ("Dashboard", "/dashboard"), ("Imports", "/imports"),
         ("Warehouses", "/warehouses"), ("SKUs", "/skus"),
         ("Lanes", "/lanes"), ("Policies", "/policies"),
-        ("Simulations", "/simulations"), ("Settings", "/settings"),
+        ("Simulations", "/simulations"), ("Notifications", "/notifications"), ("Settings", "/settings"),
     ]
     links = _join_html(["<a class=\"ias-nav-link $(active == label ? "is-active" : "")\" href=\"$href\">$label</a>" for (label, href) in nav])
     return """
@@ -90,6 +90,7 @@ function _app_shell(title::AbstractString, body::AbstractString; active::Abstrac
     .ias-badge-muted { color:#475569; background:#f8fafc; }
     .ias-badge-warning { color:var(--warn); background:#fff7ed; }
     .ias-alert { border:1px solid #f59e0b; background:#fffbeb; color:#713f12; padding:.75rem; border-radius:.65rem; }
+    .ias-bell { display:inline-flex; align-items:center; gap:.35rem; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; border-radius:999px; padding:.25rem .6rem; font-weight:800; text-decoration:none; }
     .ias-inline-form { display:grid; gap:.45rem; min-width:14rem; }
     .ias-inline-form + .ias-inline-form { margin-top:.6rem; }
     .ias-login { min-height:100vh; display:grid; place-items:center; padding:1rem; }
@@ -154,7 +155,9 @@ function _count_pending_recommendations(store::SqlTenantAdminStore, tenant_id::U
     return Int(first(first(result)))
 end
 
-_unread_local_alert_count(::MemoryTenantAdminStore, ::UUID)::Int = 0
+function _unread_local_alert_count(store::MemoryTenantAdminStore, tenant_id::UUID)::Int
+    return count(row -> row[:tenant_id] == tenant_id && row[:read_at] === nothing, values(store.local_notifications))
+end
 
 function _unread_local_alert_count(store::SqlTenantAdminStore, tenant_id::UUID)::Int
     result = LibPQ.execute(store.connection, "SELECT count(*) FROM local_notifications WHERE tenant_id = \$1 AND read_at IS NULL", [string(tenant_id)])
@@ -183,7 +186,7 @@ function render_dashboard_page(store::AbstractTenantAdminStore, ctx::TenantConte
   <article class=\"ias-panel\"><h2>Stockout risk</h2><p><strong>$(risk.risky) risky position$(risk.risky == 1 ? "" : "s")</strong></p><p class=\"ias-muted\">$(risk.total) inventory positions checked against safety stock.</p></article>
   <article class=\"ias-panel\"><h2>Pending recommendations</h2><p><strong>$pending pending</strong></p><p class=\"ias-muted\">Planner/admin review queue.</p></article>
   <article class=\"ias-panel\"><h2>Recent runs</h2><p><strong>$(length(runs)) shown</strong></p><p class=\"ias-muted\">Latest queued, running, completed, failed, or cancelled runs.</p></article>
-  <article class=\"ias-panel\"><h2>Local alerts</h2><p><strong>$alerts unread</strong></p><p class=\"ias-muted\">In-app notifications stay local when external Hub is disabled.</p></article>
+  <article class=\"ias-panel\"><h2>Local alerts</h2><p><a class=\"ias-bell\" aria-label=\"Open $alerts unread notifications\" href=\"/notifications\">Notification bell · $alerts unread</a></p><p class=\"ias-muted\">In-app notifications stay local when external Hub is disabled.</p></article>
 </section>
 <section class=\"ias-table-wrap\"><table><caption>Recent simulation runs</caption><thead><tr><th scope=\"col\">Run</th><th scope=\"col\">Status</th><th scope=\"col\">Scenarios</th></tr></thead><tbody>$run_rows</tbody></table></section>
 """

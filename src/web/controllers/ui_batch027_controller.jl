@@ -184,7 +184,7 @@ function _first_demands(scenarios)::String
 end
 
 function _run_recommendation_rows(store::AbstractTenantAdminStore, ctx::TenantContext, run_id)::String
-    recs = [_recommendation_response(row) for row in fetch_allocation_recommendations(store, ctx.tenant_id, UUID(String(run_id)))]
+    recs = [recommendation_view_model(row) for row in fetch_allocation_recommendations(store, ctx.tenant_id, UUID(String(run_id)))]
     isempty(recs) && return "<tr><td colspan=\"5\">No recommendations persisted for this run.</td></tr>"
     return _join_html([begin
         constraints = join(get(rec.explanation, "binding_constraints", []), ", ")
@@ -226,7 +226,7 @@ function render_recommendation_detail_page(store::AbstractTenantAdminStore, ctx:
     authorize!(ctx, PLANNING_READ_ACTION, PLANNING_RESOURCE)
     row = _fetch_recommendation(store, ctx.tenant_id, UUID(String(recommendation_id)))
     row === nothing && throw(ApiError("NOT_FOUND", "Recommendation not found"; status = 404))
-    rec = _recommendation_response(row)
+    rec = recommendation_view_model(row)
     explanation = rec.explanation
     constraints = join(get(explanation, "binding_constraints", []), ", ")
     sensitivity = JSON3.write(get(explanation, "scenario_sensitivity", Dict{String,Any}()))
@@ -408,6 +408,49 @@ function handle_cancel_simulation_form(services::AppServices)
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fsimulations")
         return _ui_action_failure_response("Simulation cancel failed", err)
+    end
+end
+
+function _notification_rows(notifications)::String
+    isempty(notifications) && return "<tr><td colspan=\"5\">No notifications yet.</td></tr>"
+    return _join_html([begin
+        read_state = n.read_at === nothing ? "Unread" : "Read"
+        action = n.read_at === nothing ? "<form method=\"post\" action=\"/notifications/$(_h(n.id))/read\"><button class=\"ias-secondary\" type=\"submit\">Mark read</button></form>" : "<span class=\"ias-muted\">Already read</span>"
+        "<tr><td>$(_h(n.title))<br><span class=\"ias-muted\">$(_h(n.body))</span></td><td>$(_h(n.severity))</td><td>$(_h(read_state))</td><td>$(_h(n.source_record_type))</td><td>$action</td></tr>"
+    end for n in notifications])
+end
+
+function render_notifications_page(store::AbstractTenantAdminStore, ctx::TenantContext)::String
+    notifications = list_notifications(store, ctx; params = Dict("limit" => "100")).notifications
+    unread = count(n -> n.read_at === nothing, notifications)
+    body = """
+<h1>Notifications</h1>
+<p class=\"ias-muted\">Review tenant-scoped in-app alerts. Local notifications remain available when Notification Hub is disabled or failing.</p>
+<section class=\"ias-panel\"><h2>Notification bell</h2><p><span class=\"ias-bell\" aria-label=\"$unread unread notifications\">Notification bell · $unread unread</span></p></section>
+<section class=\"ias-table-wrap\"><table><caption>Notification list</caption><thead><tr><th>Message</th><th>Severity</th><th>State</th><th>Source</th><th>Action</th></tr></thead><tbody>$(_notification_rows(notifications))</tbody></table></section>
+"""
+    return _app_shell("Notifications", body; active = "Notifications")
+end
+
+function handle_notifications_page(services::AppServices)
+    try
+        ctx, store = _protected_ui_context_and_store(services)
+        return _html_response(render_notifications_page(store, ctx))
+    catch err
+        err isa AuthError && return _redirect_response("/login?next=%2Fnotifications")
+        return _html_response("<h1>Notifications unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = err isa ApiError ? err.status : 500)
+    end
+end
+
+function handle_mark_notification_read_form(services::AppServices)
+    try
+        _enforce_route_rate_limit!(services, "POST", "/notifications/:id/read")
+        ctx, store = _protected_ui_context_and_store(services)
+        mark_notification_read!(store, ctx, Router.params(:id))
+        return _redirect_response("/notifications")
+    catch err
+        err isa AuthError && return _redirect_response("/login?next=%2Fnotifications")
+        return _ui_action_failure_response("Notification action failed", err)
     end
 end
 

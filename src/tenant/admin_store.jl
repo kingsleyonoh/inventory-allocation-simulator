@@ -16,6 +16,7 @@ mutable struct MemoryTenantAdminStore <: AbstractTenantAdminStore
     allocation_recommendations::Dict{UUID,Dict{Symbol,Any}}
     recommendation_decisions::Dict{UUID,Dict{Symbol,Any}}
     local_notifications::Dict{UUID,Dict{Symbol,Any}}
+    ecosystem_outbox::Dict{UUID,Dict{Symbol,Any}}
     simulation_idempotency::Dict{Tuple{UUID,String},UUID}
 end
 
@@ -42,6 +43,7 @@ function MemoryTenantAdminStore(
     allocation_recommendations::AbstractVector = [],
     recommendation_decisions::AbstractVector = [],
     local_notifications::AbstractVector = [],
+    ecosystem_outbox::AbstractVector = [],
 )::MemoryTenantAdminStore
     return MemoryTenantAdminStore(
         _record_map(tenants),
@@ -58,6 +60,7 @@ function MemoryTenantAdminStore(
         _record_map(allocation_recommendations),
         _record_map(recommendation_decisions),
         _record_map(local_notifications),
+        _record_map(ecosystem_outbox),
         Dict{Tuple{UUID,String},UUID}(),
     )
 end

@@ -39,12 +39,17 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/simulations/:id", "simulations_detail_page"),
         RouteDefinition(:POST, "/simulations/:id/cancel", "simulations_cancel_form"),
         RouteDefinition(:GET, "/recommendations/:id", "recommendation_detail_page"),
+        RouteDefinition(:GET, "/notifications", "notifications_page"),
+        RouteDefinition(:POST, "/notifications/:id/read", "notifications_read_form"),
         RouteDefinition(:GET, "/api/recommendations", "recommendations_list"),
         RouteDefinition(:GET, "/api/recommendations/:id", "recommendations_get"),
         RouteDefinition(:POST, "/api/recommendations/:id/approve", "recommendations_approve"),
         RouteDefinition(:POST, "/api/recommendations/:id/reject", "recommendations_reject"),
         RouteDefinition(:POST, "/api/recommendations/:id/expire", "recommendations_expire"),
         RouteDefinition(:POST, "/api/recommendations/:id/export", "recommendations_export"),
+        RouteDefinition(:GET, "/api/recommendations/:id/export.csv", "recommendations_export_csv"),
+        RouteDefinition(:GET, "/api/notifications", "notifications_list"),
+        RouteDefinition(:PATCH, "/api/notifications/:id/read", "notifications_read"),
         RouteDefinition(:POST, "/api/tenants/register", "tenant_register"),
         RouteDefinition(:GET, "/tenants/me", "tenant_me"),
         RouteDefinition(:GET, "/api/settings/tenant", "tenant_settings_read"),
@@ -202,6 +207,12 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         route("/recommendations/:id"; method = GET) do
             handle_recommendation_detail_page(services)
         end
+        route("/notifications"; method = GET) do
+            handle_notifications_page(services)
+        end
+        route("/notifications/:id/read"; method = POST) do
+            handle_mark_notification_read_form(services)
+        end
         route("/api/tenants/register"; method = POST) do
             handle_register_tenant(services)
         end
@@ -312,6 +323,15 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/api/recommendations/:id/export"; method = POST) do
             handle_export_recommendation(services)
+        end
+        route("/api/recommendations/:id/export.csv"; method = GET) do
+            handle_export_recommendation_csv(services)
+        end
+        route("/api/notifications"; method = GET) do
+            handle_list_notifications(services)
+        end
+        route("/api/notifications/:id/read"; method = PATCH) do
+            handle_mark_notification_read(services)
         end
     end
 
