@@ -100,6 +100,7 @@ function run_server!(;
     server_starter::Function = Genie.up,
     install_hook::Bool = true,
 )
+    Genie.config.log_requests = config.app.log_requests
     services = build_services(config)
     register_routes!(services)
     start_runtime_jobs!(services, config; start_jobs = start_jobs, import_store = import_store)

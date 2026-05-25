@@ -4,7 +4,7 @@ function handle_create_simulation(services::AppServices)
     try
         request = _enforce_route_rate_limit!(services, "POST", "/api/simulations")
         ctx, store = _protected_context_and_store(services; request = request)
-        idempotency_key = get(request.headers, "Idempotency-Key", nothing)
+        idempotency_key = _request_header("Idempotency-Key")
         return _json_response(create_simulation_run!(store, ctx, _json_body(); idempotency_key = idempotency_key); status = 202)
     catch err
         return _error_response(err)

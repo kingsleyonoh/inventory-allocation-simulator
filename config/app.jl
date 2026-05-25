@@ -6,6 +6,7 @@ struct AppRuntimeConfig
     port::Int
     public_base_url::String
     log_level::String
+    log_requests::Bool
 end
 
 struct DatabaseConfig
@@ -121,6 +122,7 @@ function _load_runtime_config(env)::AppRuntimeConfig
         parse_port(_env_get(env, "APP_PORT", string(DEFAULT_PORT))),
         _env_get(env, "PUBLIC_BASE_URL", "http://localhost:8000"),
         _env_get(env, "LOG_LEVEL", "info"),
+        _parse_bool(_env_get(env, "GENIE_LOG_REQUESTS", "true"), "GENIE_LOG_REQUESTS"),
     )
 end
 

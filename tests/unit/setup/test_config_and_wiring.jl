@@ -7,6 +7,7 @@ using Test
         "APP_PORT" => "8099",
         "PUBLIC_BASE_URL" => "http://127.0.0.1:8099",
         "LOG_LEVEL" => "debug",
+        "GENIE_LOG_REQUESTS" => "false",
         "DATABASE_URL" => raw"postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/inventory_allocation",
         "REDIS_URL" => "redis://localhost:6379/0",
         "DUCKDB_PATH" => "./data/test-config.duckdb",
@@ -39,6 +40,7 @@ using Test
 
     @test config.app.env == "test"
     @test config.app.port == 8099
+    @test config.app.log_requests == false
     @test config.database.url == env["DATABASE_URL"]
     @test config.database.redis_url == env["REDIS_URL"]
     @test config.database.duckdb_path == "./data/test-config.duckdb"
