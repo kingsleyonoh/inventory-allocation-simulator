@@ -18,7 +18,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
   const { session } = await createAgentSession({
     cwd: options.cwd,
     model,
-    thinkingLevel: (options.route.thinking ?? "high") as ThinkingLevel,
+    thinkingLevel: (options.route.thinking ?? "medium") as ThinkingLevel,
     tools: options.route.tools,
     authStorage,
     modelRegistry,

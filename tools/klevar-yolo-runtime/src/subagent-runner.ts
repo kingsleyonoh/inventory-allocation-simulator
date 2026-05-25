@@ -17,6 +17,7 @@ export async function runSubagent(invocation: SubagentInvocation): Promise<Batch
   const maxRetries = budget.maxRetries ?? 0;
   for (let attempt = 1; attempt <= maxRetries + 1; attempt += 1) {
     const sessionFile = path.join(invocation.cwd, `.yolo/pi-sessions/${invocation.id}${attempt > 1 ? `-retry-${attempt}` : ""}.jsonl`);
+    await rm(sessionFile, { force: true });
     const startedAt = new Date().toISOString();
     const startedMs = Date.now();
     await emitTelemetry(invocation, sessionFile, startedMs, startedAt, attempt, budget, "running");

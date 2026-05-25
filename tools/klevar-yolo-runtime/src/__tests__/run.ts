@@ -5,6 +5,8 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { validatePaths } from "../validators/path-validator.js";
 import { validateArtifacts } from "../validators/artifact-validator.js";
+import { blockingOpenFindings, canonicalizeBatchResultForRuntime, classifyBatchRisk, findingSummary, recordGateState } from "../runtime-batch-state.js";
+import { validationPolicyFor } from "../validation-policy.js";
 import { validateLocalOnlyFiles } from "../validators/local-only-validator.js";
 import { validateSecrets } from "../validators/secret-validator.js";
 import { validateExternalOps } from "../validators/external-ops-validator.js";
@@ -12,7 +14,7 @@ import { isAuditItem, selectBatch } from "../progress-parser.js";
 import { extractVerifierFiles, validateWiring } from "../validators/wiring-validator.js";
 import { validateProgressContract } from "../validators/progress-contract-validator.js";
 import { validateBusinessLogic } from "../validators/business-logic-validator.js";
-import { validateCommandEvidence } from "../validators/command-validator.js";
+import { adoptedSessionCommandPassed, summarizeFailure, validateCommandEvidence } from "../validators/command-validator.js";
 import { validateFrontendImpeccable } from "../validators/frontend-validator.js";
 import { validateProductQuality } from "../validators/product-quality-validator.js";
 import { validateTdd } from "../validators/tdd-validator.js";
@@ -39,7 +41,7 @@ import { cleanBatch, normalizeBatch, rollbackLast, undoLast } from "../recovery.
 import { loadClaims, markRuntimeClaim, prepareRuntimeClaim, validateClaims } from "../collaboration/claims.js";
 import { planParallelBatches } from "../collaboration/scheduler.js";
 import { formatRuntimeNotification, shouldNotifyRuntimeFinish, telegramEnabled } from "../notifications.js";
-import { routeInboxEntries } from "../inbox-router.js";
+import { readPendingInbox, reconcileInbox, routeInboxEntries } from "../inbox-router.js";
 import { routeInboxWithAi } from "../inbox-ai-router.js";
 import { buildRelevantKnowledgePack, expandCandidateRequests } from "../knowledge-retriever.js";
 import { markPhaseSupportDue, nextSupportPlan, supportGateName } from "../support-scheduler.js";
@@ -131,6 +133,15 @@ test("default path policy allows runtime-owned knowledge and env example updates
     ".env.local"
   ], defaultConfig);
   assert.deepEqual(result, { name: "paths", passed: false, flags: ["PROTECTED_PATH:.agent/rules/CODEBASE_CONTEXT.md", "BLOCKED_PATH:.env.local"] });
+});
+
+test("path policy allows evidence-backed documented command fixes in CODEBASE_CONTEXT", () => {
+  const result = implementResult({
+    filesChanged: [".agent/rules/CODEBASE_CONTEXT.md"],
+    flags: ["BROKEN_DOCUMENTED_AQUA_COMMAND", "DOCUMENTED_AQUA_COMMAND_PASS"],
+    tests: { green: { command: "bash tests/static_documented_commands_contract.sh", exitCode: 0, evidence: "documented command passed" } }
+  });
+  assert.deepEqual(validatePaths(result.filesChanged, defaultConfig, result), { name: "paths", passed: true, flags: [] });
 });
 
 test("config merge preserves new default allowed generated paths for older project configs", async () => {
@@ -624,6 +635,168 @@ test("wiring verifier infers objective test coverage for string-only recovered e
   await rm(dir, { recursive: true, force: true });
 });
 
+test("wiring verifier infers annotated API entrypoint chains from route evidence", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "scripts"), { recursive: true });
+  await writeFile(join(dir, "scripts/run-e2e.ts"), "console.log('PASS POST /api/admin/operator-inbox/read/:itemId 200');\nconsole.log('PASS GET /api/admin/audit-events 200');\n");
+  const result = implementResult({ filesChanged: ["src/routes/admin/operator-inbox.ts"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [
+      { type: "api", path: "POST /api/admin/operator-inbox/read/:itemId -> markOperatorItemRead -> recordAuditEvent", verifiedBy: "" },
+      { type: "api", path: "GET /api/admin/audit-events -> listAuditEvents", verifiedBy: "" }
+    ]
+  };
+  const gate = await validateWiring(dir, { number: 7, type: "implement", items: [progressItem("[API]", "Audit inbox reads — PRD §13b.7")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier infers API and CLI coverage from e2e scripts", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "scripts"), { recursive: true });
+  await writeFile(join(dir, "scripts/run-e2e.ts"), [
+    "await expectApi('POST', `/api/admin/operator-inbox/read-project/${seed.projectId}`, seed.apiKey);",
+    "await expectApi('POST', `/api/admin/operator-inbox/read-client/${seed.clientId}`, seed.apiKey);",
+    "await expectCli(['queue'], seed.apiKey, 'Work queue');",
+    "await expectCli(['inbox', 'read-state', `task:${seed.taskId}`], seed.apiKey, 'Unread: no');",
+    "await expectCli(['reports', 'draft', seed.clientId], seed.apiKey, 'Draft created');",
+    "await expectCli(['reports', 'archive', seed.draftId], seed.apiKey, 'Archived');"
+  ].join("\n"));
+  const result = implementResult({ filesChanged: ["scripts/run-e2e.ts"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [
+      { type: "api", path: "POST /api/admin/operator-inbox/read-project/:projectId", verifiedBy: "" },
+      { type: "api", path: "POST /api/admin/operator-inbox/read-client/:clientId", verifiedBy: "" },
+      { type: "cli", path: "CLI klevar-portal queue", verifiedBy: "" },
+      { type: "cli", path: "CLI klevar-portal inbox read-state <itemId>", verifiedBy: "" },
+      { type: "cli", path: "CLI klevar-portal reports draft <clientId>", verifiedBy: "" },
+      { type: "cli", path: "CLI klevar-portal reports archive <draftId>", verifiedBy: "" }
+    ]
+  };
+  const gate = await validateWiring(dir, { number: 4, type: "implement", items: [progressItem("[API]", "Operator inbox — PRD §8b")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier infers CLI entries without CLI prefix and query route coverage", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "tests/cli"), { recursive: true });
+  await mkdir(join(dir, "scripts"), { recursive: true });
+  await writeFile(join(dir, "tests/cli/tooling.test.ts"), [
+    "await cli(['inbox', '--read']);",
+    "await cli(['inbox', '--all']);",
+    "await cli(['inbox', 'read-state', itemId]);",
+    "await cli(['reports', 'draft', clientId]);",
+    "await cli(['reports', 'send', draftId]);"
+  ].join("\n"));
+  await writeFile(join(dir, "scripts/e2e.ts"), "await expectApi('GET', '/api/admin/operator-inbox?all=true', apiKey);\n");
+  const result = implementResult({ filesChanged: ["tools/commands/operator.ts"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [
+      { type: "cli", path: "klevar-portal inbox --read", verifiedBy: "" },
+      { type: "cli", path: "klevar-portal inbox --all", verifiedBy: "" },
+      { type: "cli", path: "klevar-portal inbox read-state <itemId>", verifiedBy: "" },
+      { type: "cli", path: "klevar-portal reports draft|send", verifiedBy: "" },
+      { type: "api", path: "GET /api/admin/operator-inbox?all=true", verifiedBy: "" }
+    ]
+  };
+  const gate = await validateWiring(dir, { number: 5, type: "implement", items: [progressItem("[API]", "Operator inbox — PRD §8b")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier infers dynamic API query placeholders from e2e evidence", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "scripts"), { recursive: true });
+  await writeFile(join(dir, "scripts/run-e2e.ts"), [
+    "await expectApi('GET', `/api/admin/notifications/preview/${seed.eventType}?client=${clientA.id}&project=${projectB.id}&explain=true`, apiKey, 400);",
+    "await expectCli(['notifications', 'preview', seed.eventType, '--client', clientA.id, '--project', projectB.id, '--explain'], apiKey, 'client/project mismatch');"
+  ].join("\n"));
+  const result = implementResult({ filesChanged: ["scripts/run-e2e.ts"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [
+      { type: "api", path: "GET /api/admin/notifications/preview/:eventType?client=<clientA>&project=<projectB>&explain=true", verifiedBy: "" },
+      { type: "cli", path: "klevar-portal notifications preview --client <clientA> --project <projectB> --explain", verifiedBy: "" }
+    ]
+  };
+  const gate = await validateWiring(dir, { number: 8, type: "implement", items: [progressItem("[API]", "Notification preview explain — PRD §13b.6")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier infers descriptive API and npm script evidence", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "scripts"), { recursive: true });
+  await mkdir(join(dir, "src/routes/public"), { recursive: true });
+  await mkdir(join(dir, "src"), { recursive: true });
+  await writeFile(join(dir, "scripts/run-e2e.ts"), "console.log('PASS POST /api/onboard invalid payload 400 without server-error log');\n");
+  await writeFile(join(dir, "src/routes/public/onboard.ts"), "router.post('/api/onboard', async () => {});\n");
+  await writeFile(join(dir, "src/server.ts"), "app.addHook('onClose', async () => closeRateLimitRedis());\n");
+  const result = implementResult({ filesChanged: ["src/routes/public/onboard.ts", "src/server.ts", "scripts/run-e2e.ts"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [
+      { type: "api", path: "POST /api/onboard invalid payload returns 400 without server-error log", verifiedBy: "" },
+      { type: "server", path: "Fastify onClose closes rate-limit Redis singleton", verifiedBy: "" },
+      { type: "e2e", path: "npm run test:e2e public onboarding validation probe", verifiedBy: "" }
+    ]
+  };
+  const gate = await validateWiring(dir, { number: 11, type: "implement", items: [progressItem("[API]", "Public onboarding — PRD §8")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier discovers project-local verifier extensions", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "tests/policy"), { recursive: true });
+  await writeFile(join(dir, "tests/policy/allocation_policy_test.weirdlang"), "assert creates_policy_via_adapter()\n");
+  const result = implementResult({ filesChanged: ["src/policy.adapter"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [{ type: "module", path: "creates_policy_via_adapter", verifiedBy: "" }]
+  };
+  const gate = await validateWiring(dir, { number: 14, type: "implement", items: [progressItem("[API]", "Policy adapter — PRD §7")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier accepts discovered extension alternatives for declared test files", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "tests/policy"), { recursive: true });
+  await writeFile(join(dir, "tests/policy/allocation_policy.test.weirdlang"), "assert true\n");
+  const result = implementResult({ filesChanged: ["src/policy.adapter"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [{ type: "module", path: "create policy", verifiedBy: "tests/policy/allocation_policy.test.ts" }]
+  };
+  const gate = await validateWiring(dir, { number: 14, type: "implement", items: [progressItem("[API]", "Policy adapter — PRD §7")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("wiring verifier infers module function symbols from compact entrypoints", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, "tests/unit/data"), { recursive: true });
+  await mkdir(join(dir, "src/planning"), { recursive: true });
+  await writeFile(join(dir, "tests/unit/data/repository_test.jl"), [
+    "listed = list_allocation_policies(store, ctx)",
+    "created = create_allocation_policy!(store, ctx, payload)"
+  ].join("\n"));
+  await writeFile(join(dir, "src/planning/catalog.jl"), "function list_allocation_policies() end\nfunction create_allocation_policy!() end\n");
+  const result = implementResult({ filesChanged: ["src/planning/catalog.jl"] });
+  result.wiring = {
+    required: true,
+    entrypoints: [{ type: "module", path: "list_allocation_policies/create_allocation_policy!", verifiedBy: "" }]
+  };
+  const gate = await validateWiring(dir, { number: 13, type: "implement", items: [progressItem("[API]", "Repository functions — PRD §7")] } as any, result, true);
+  assert.deepEqual(gate, { name: "wiring", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
 test("batch result normalization treats malformed agent JSON as hostile input", async () => {
   const raw = {
     schemaVersion: 1,
@@ -679,6 +852,31 @@ test("batch result normalization canonicalizes test evidence aliases", () => {
   assert.ok(normalized.flags.includes("TEST_EVIDENCE_ALIASES_NORMALIZED"));
   assert.equal(validateTdd(normalized, true).passed, true);
   assert.equal(validateContract(normalized).passed, true);
+});
+
+test("canonical batch result preserves project-local contract metadata", async () => {
+  const dir = await tempDir();
+  const file = join(dir, "batch-015-audit.json");
+  await writeFile(file, JSON.stringify({
+    schemaVersion: 1,
+    agent: "audit",
+    batch: 15,
+    status: "SUCCESS",
+    itemsCompleted: [],
+    filesChanged: [],
+    flags: [],
+    auditType: "matrix-coverage",
+    matrixRef: "Roles × Resource Actions",
+    cellsChecked: 18,
+    cellsPassed: 18,
+    cellsFailed: 0
+  }));
+  const result = await readCanonicalBatchResult(file) as any;
+  assert.equal(result.auditType, "matrix-coverage");
+  const persisted = JSON.parse(await readFileText(file));
+  assert.equal(persisted.auditType, "matrix-coverage");
+  assert.equal(persisted.cellsChecked, 18);
+  await rm(dir, { recursive: true, force: true });
 });
 
 test("canonical batch result read repairs result files on disk", async () => {
@@ -804,17 +1002,27 @@ test("e2e validator allows legitimate manual-intake feature names", () => {
       }
     }
   });
-  assert.deepEqual(validateE2e(result, true), { name: "e2e", passed: true, flags: [] });
+  assert.deepEqual(validateE2e({ number: 1, type: "implement", items: [progressItem("[UI]", "Manual intake — PRD §8")] }, result, true), { name: "e2e", passed: true, flags: [] });
 });
 
 test("e2e validator still rejects manual-only skip claims", () => {
   const result = implementResult({ tests: { e2e: { required: true, command: "n/a", exitCode: 0, evidence: "Manual testing only; covered by integration tests." } } });
-  assert.deepEqual(validateE2e(result, true), { name: "e2e", passed: false, flags: ["MISSING_RUNNABLE_E2E_COMMAND", "E2E_DISHONEST_SKIP"] });
+  assert.deepEqual(validateE2e({ number: 1, type: "implement", items: [progressItem("[UI]", "Manual intake — PRD §8")] }, result, true), { name: "e2e", passed: false, flags: ["MISSING_RUNNABLE_E2E_COMMAND", "E2E_DISHONEST_SKIP"] });
 });
 
 test("e2e validator trusts passing runnable evidence over fuzzy language", () => {
   const result = implementResult({ tests: { e2e: { required: true, command: "npx playwright test", exitCode: 0, evidence: "Playwright passed; not manual testing only." } } });
-  assert.deepEqual(validateE2e(result, true), { name: "e2e", passed: true, flags: [] });
+  assert.deepEqual(validateE2e({ number: 1, type: "implement", items: [progressItem("[UI]", "Manual intake — PRD §8")] }, result, true), { name: "e2e", passed: true, flags: [] });
+});
+
+test("e2e validator accepts module-boundary batches with passing regression and no endpoint changes", () => {
+  const result = implementResult({ tests: {
+    green: { command: "sbt testOnly solver.SolverAdapterSpec", exitCode: 0, evidence: "module tests passed" },
+    regression: { command: "sbt test", exitCode: 0, evidence: "full tests passed" },
+    e2e: { required: false, command: "not applicable", exitCode: 0, evidence: "No API endpoint or UI entrypoint changed; solver boundary only." }
+  } });
+  result.wiring = { required: true, entrypoints: [{ type: "module", path: "solver.OrToolsSolverAdapter.solve", verifiedBy: "SolverAdapterSpec" }] };
+  assert.deepEqual(validateE2e({ number: 15, type: "implement", items: [progressItem("[DATA]", "Solver adapter — PRD §5.4")] }, result, true), { name: "e2e", passed: true, flags: [] });
 });
 
 test("tdd validator uses objective evidence before fuzzy skip language", () => {
@@ -877,6 +1085,15 @@ test("frontend validator skips non-frontend work", async () => {
   const batch = { number: 1, type: "implement" as const, items: [{ raw: "", tag: "[API]", title: "endpoint", phase: "p", checked: false }] };
   const result = journalResult({ journal_entry_written: true, gate_file_written: true });
   result.filesChanged = ["src/api/orders.ts"];
+  assert.deepEqual(await validateFrontendImpeccable(dir, batch, result, configWithPatterns([], [], [])), { name: "frontend", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("frontend validator does not treat backend public route handlers as Impeccable targets", async () => {
+  const dir = await tempDir();
+  const batch = { number: 11, type: "implement" as const, items: [{ raw: "", tag: "[API]", title: "Public route — PRD §8", phase: "p", checked: false }] };
+  const result = journalResult({ journal_entry_written: true, gate_file_written: true });
+  result.filesChanged = ["src/routes/public/onboard.ts", "src/server.ts"];
   assert.deepEqual(await validateFrontendImpeccable(dir, batch, result, configWithPatterns([], [], [])), { name: "frontend", passed: true, flags: [] });
   await rm(dir, { recursive: true, force: true });
 });
@@ -1065,6 +1282,51 @@ test("product quality validator rejects generic design briefs for ui work", asyn
   await rm(dir, { recursive: true, force: true });
 });
 
+test("canonical runtime state drops placeholder artifacts and stale fixed flags", () => {
+  const batch = { number: 12, type: "implement", items: [progressItem("[API]", "Endpoint — PRD §8")] } as any;
+  const result = implementResult({ artifacts: [{ path: "unknown" }], flags: ["FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS", "FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS_FIXED"] });
+  const canonical = canonicalizeBatchResultForRuntime(batch, result);
+  assert.deepEqual(canonical.artifacts, []);
+  assert.ok(!canonical.flags.includes("FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS"));
+});
+
+test("canonical finding lifecycle closes previously open gate findings", () => {
+  const batch = { number: 12, type: "implement", items: [progressItem("[UI]", "Form — PRD §8")] } as any;
+  const base = canonicalizeBatchResultForRuntime(batch, implementResult({ flags: ["FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS"] }));
+  const opened = recordGateState({ schemaVersion: 1, batch: 12, selectedItems: [], changedFiles: [], risk: { class: "medium", reasons: [] }, currentResult: base, findings: [], commands: [], gates: {}, updatedAt: new Date().toISOString() }, [{ name: "frontend", passed: false, flags: ["FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS"] }]);
+  assert.equal(blockingOpenFindings(opened).length, 1);
+  const fixedResult = canonicalizeBatchResultForRuntime(batch, implementResult({ flags: ["FRONTEND_IMPECCABLE_P1_UNWIRED_FORMS_FIXED"] }), opened.findings);
+  const closed = recordGateState({ ...opened, currentResult: fixedResult }, [{ name: "frontend", passed: true, flags: [] }]);
+  assert.equal(blockingOpenFindings(closed).length, 0);
+  assert.equal(findingSummary(closed).fixed, 1);
+});
+
+test("validation policy classifies critical and low risk batches", () => {
+  const critical = { number: 1, type: "implement", items: [progressItem("[API]", "Auth migration — PRD §8")] } as any;
+  const low = { number: 2, type: "implement", items: [progressItem("[DOCS]", "Docs wording — PRD §1")] } as any;
+  assert.equal(classifyBatchRisk(critical).class, "critical");
+  assert.equal(classifyBatchRisk(low).class, "low");
+  assert.equal(validationPolicyFor(low, implementResult(), defaultConfig).allowRegressionCache, true);
+  assert.equal(validationPolicyFor(low, implementResult(), { ...defaultConfig, validationMode: "fast" }).requireAdversarialValidation, false);
+  assert.equal(validationPolicyFor(critical, implementResult(), { ...defaultConfig, validationMode: "fast" }).requireAdversarialValidation, true);
+});
+
+test("runtime source uses canonical batch state and runtime lock", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /importAgentResultToState/);
+  assert.match(source, /recordGateState/);
+  assert.match(source, /acquireRuntimeLock/);
+  assert.match(source, /heartbeatRuntimeLock/);
+  assert.match(source, /releaseRuntimeLock/);
+});
+
+test("artifact validator ignores placeholder artifact paths", async () => {
+  const dir = await tempDir();
+  const result = implementResult({ artifacts: [{ path: "unknown" }] });
+  assert.deepEqual(await validateArtifacts(dir, result), { name: "artifacts", passed: true, flags: [] });
+  await rm(dir, { recursive: true, force: true });
+});
+
 test("artifact validator accepts string/path/file artifact shapes", async () => {
   const dir = await tempDir();
   await writeFile(join(dir, "a.txt"), "a");
@@ -1103,6 +1365,19 @@ test("full validator matrix accepts valid setup batch variants", async () => {
   result.artifacts = ["artifact.txt"] as unknown as BatchResult["artifacts"];
   const gates = await validateAll(dir, batch, result, configWithPatterns([], [], [".yolo/"]));
   assert.equal(gatesPassed(gates), true, JSON.stringify(gates));
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("config merge caps stale project high thinking overrides", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, ".yolo"), { recursive: true });
+  await writeFile(join(dir, ".yolo/runtime.config.json"), JSON.stringify({ schemaVersion: 1, models: { master: { thinking: "xhigh" }, validate: { thinking: "xhigh" }, bugfix: { thinking: "high" }, audit: { thinking: "high" }, adjudicate: { thinking: "high" } } }));
+  const config = await loadConfig(dir);
+  assert.equal(config.models.master.thinking, "medium");
+  assert.equal(config.models.validate.thinking, "medium");
+  assert.equal(config.models.bugfix.thinking, "medium");
+  assert.equal(config.models.audit.thinking, "medium");
+  assert.equal(config.models.adjudicate.thinking, "medium");
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -1227,6 +1502,45 @@ test("support scheduler runs final maintenance sequence after all progress items
   await rm(dir, { recursive: true, force: true });
 });
 
+test("inbox parser ignores inline heading references before real sections", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "klevar-inbox-heading-"));
+  await mkdir(join(dir, "docs"), { recursive: true });
+  await writeFile(join(dir, "docs/yolo-inbox.md"), [
+    "# YOLO Inbox",
+    "Intro says write entries under `## Pending` and move them to `## Handled` later.",
+    "",
+    "## Pending",
+    "",
+    "<!--",
+    "### [HIGH|MEDIUM|LOW (optional)] Title — YYYY-MM-DD",
+    "**Type:** FEATURE",
+    "**Urgency hint:** HIGH",
+    "**Affected files:** docs/example.md",
+    "Status: PENDING",
+    "-->",
+    "",
+    "### Manual CI/CD trigger — 2026-05-23",
+    "**Type:** FEATURE",
+    "**Urgency hint:** HIGH",
+    "**Affected files:** .github/workflows/ci.yml, tests/unit/setup/test_lifecycle_migrations_ci.jl",
+    "Status: PENDING",
+    "",
+    "## Handled",
+    "",
+    "None yet."
+  ].join("\n"));
+  const entries = await readPendingInbox(dir);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].title, "Manual CI/CD trigger — 2026-05-23");
+  assert.equal(entries[0].priority, "HIGH");
+  assert.deepEqual(entries[0].affectedFiles, [".github/workflows/ci.yml", "tests/unit/setup/test_lifecycle_migrations_ci.jl"]);
+  const moved = await reconcileInbox(dir, implementResult({ inbox: { handledTitles: ["Manual CI/CD trigger — 2026-05-23"] } }));
+  assert.equal(moved, 1);
+  const text = await readFile(join(dir, "docs/yolo-inbox.md"), "utf8");
+  assert.match(text, /^## Handled\n\n### Manual CI\/CD trigger — 2026-05-23 — handled/m);
+  await rm(dir, { recursive: true, force: true });
+});
+
 test("inbox router prioritizes high, folds related medium, and defers low", () => {
   const selected = [{ raw: "- [ ] [UI] Build queue — PRD §5b", title: "Build queue", tag: "[UI]", phase: "Phase 1", checked: false, affectedFiles: ["src/main/resources/templates/claims/list.html"] }];
   const high = [{ title: "[HIGH] Stop unsafe flow — 2026-05-19", priority: "HIGH" as const, body: "critical", affectedFiles: [], type: "BUG", date: "2026-05-19" }];
@@ -1306,6 +1620,24 @@ test("subagent prompt contract includes canonical JSON examples", async () => {
   assert.match(source, /"commit": null/);
 });
 
+test("subagent runner starts from a fresh session file on rerun", async () => {
+  const source = await readFileText(join(process.cwd(), "src/subagent-runner.ts"));
+  assert.match(source, /rm\(sessionFile, \{ force: true \}\)/);
+  assert.match(source, /clearSubagentOutput\(invocation\.cwd, invocation\.outputBase\)/);
+});
+
+test("default model routes cap guarded roles at medium thinking", () => {
+  assert.equal(defaultConfig.models.master.thinking, "medium");
+  assert.equal(defaultConfig.models.implement.thinking, "medium");
+  assert.equal(defaultConfig.models.validate.thinking, "medium");
+  assert.equal(defaultConfig.models.bugfix.thinking, "medium");
+  assert.equal(defaultConfig.models.audit.thinking, "medium");
+  assert.equal(defaultConfig.models.adjudicate.thinking, "medium");
+  assert.equal(defaultConfig.models.journal.thinking, "low");
+  assert.equal(defaultConfig.models.knowledge.thinking, "medium");
+  assert.equal(defaultConfig.models.inbox.thinking, "low");
+});
+
 test("default agent budgets allow long validation and bugfix sessions", () => {
   assert.equal(defaultConfig.models.validate.budget?.staleMs, 30 * 60_000);
   assert.equal(defaultConfig.models.validate.budget?.maxToolCalls, 300);
@@ -1318,14 +1650,21 @@ test("subagent telemetry summarizes tool calls budgets and events", async () => 
   const sessionFile = join(dir, ".yolo/pi-sessions/batch-001-implement.jsonl");
   await mkdir(join(dir, ".yolo/pi-sessions"), { recursive: true });
   await writeFile(sessionFile, [
-    JSON.stringify({ timestamp: new Date(Date.now() - 10_000).toISOString(), message: { role: "assistant", content: [{ type: "toolCall", name: "bash", arguments: { command: "./gradlew test" } }], usage: { input: 10, output: 5, totalTokens: 15, cost: { total: 0.01 } } } }),
+    JSON.stringify({ timestamp: new Date(Date.now() - 10_000).toISOString(), type: "model_change", provider: "openai", modelId: "gpt-test" }),
+    JSON.stringify({ timestamp: new Date(Date.now() - 9_000).toISOString(), type: "thinking_level_change", thinkingLevel: "medium" }),
+    JSON.stringify({ timestamp: new Date(Date.now() - 8_000).toISOString(), message: { role: "assistant", provider: "openai", model: "gpt-test", content: [{ type: "toolCall", name: "bash", arguments: { command: "./gradlew test" } }], usage: { input: 10, output: 5, totalTokens: 15, cost: { total: 0.01 } } } }),
     JSON.stringify({ timestamp: new Date().toISOString(), message: { role: "toolResult", toolName: "bash", content: [{ type: "text", text: "BUILD SUCCESSFUL" }] } })
   ].join("\n") + "\n");
-  const invocation = { id: "batch-001-implement", role: "implement" as const, promptFile: "p.md", context: "", outputBase: ".yolo/batch-results/batch-001-implement", cwd: dir, route: { budget: { maxToolCalls: 0 } } };
+  const invocation = { id: "batch-001-implement", role: "implement" as const, promptFile: "p.md", context: "", outputBase: ".yolo/batch-results/batch-001-implement", cwd: dir, route: { model: "openai/gpt-test", thinking: "medium" as const, budget: { maxToolCalls: 0 } } };
   const budget = budgetFromInvocation(invocation);
   const summary = await summarizeSubagentSession(invocation, sessionFile, Date.now() - 1000, new Date().toISOString(), 1, budget);
   assert.equal(summary.lastCommand, "./gradlew test");
   assert.equal(summary.lastResult, "BUILD SUCCESSFUL");
+  assert.equal(summary.thinking, "medium");
+  assert.equal(summary.requestedThinking, "medium");
+  assert.equal(summary.sessionThinking, "medium");
+  assert.equal(summary.requestedModel, "openai/gpt-test");
+  assert.equal(summary.sessionModel, "openai/gpt-test");
   assert.ok(summary.warnings.includes("TOOL_CALL_BUDGET:1"));
   await appendSubagentEvent(dir, invocation.id, { type: "test_event" });
   assert.match(await readFileText(join(dir, ".yolo/subagent-events/batch-001-implement.jsonl")), /test_event/);
@@ -1443,6 +1782,39 @@ test("adjudication decisions normalize accept and bugfix outcomes", () => {
   assert.equal(adjudicationNeedsBugfix(bugfix), true);
 });
 
+test("command validator adopts exact passed subagent commands with no later source mutation", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, ".yolo/pi-sessions"), { recursive: true });
+  const session = join(dir, ".yolo/pi-sessions/batch-001-implement.jsonl");
+  await writeFile(session, [
+    JSON.stringify({ message: { role: "assistant", content: [{ type: "toolCall", id: "call-1", name: "bash", arguments: { command: "npm test" } }] } }),
+    JSON.stringify({ message: { role: "toolResult", toolCallId: "call-1", toolName: "bash", isError: false, content: [{ type: "text", text: "passed" }] } }),
+    JSON.stringify({ message: { role: "assistant", content: [{ type: "toolCall", id: "call-2", name: "write", arguments: { path: ".yolo/batch-results/batch-001-implement.json", content: "{}" } }] } }),
+    JSON.stringify({ message: { role: "assistant", content: [{ type: "toolCall", id: "call-3", name: "bash", arguments: { command: "git status --short" } }] } })
+  ].join("\n") + "\n");
+  assert.equal(adoptedSessionCommandPassed(dir, "npm test"), true);
+  await writeFile(session, (await readFileText(session)) + JSON.stringify({ message: { role: "assistant", content: [{ type: "toolCall", id: "call-4", name: "edit", arguments: { path: "src/app.ts" } }] } }) + "\n");
+  assert.equal(adoptedSessionCommandPassed(dir, "npm test"), false);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("command validator summarizes failure tails instead of dependency banners", () => {
+  const stdout = [
+    "Testing InventoryAllocationSimulator",
+    "Status `C:/Temp/jl_x/Project.toml`",
+    "[4c88cf16] Aqua v0.8.14",
+    "Test Summary: | Pass  Fail  Total",
+    "tenant uuid validation | 12 1 13",
+    "ERROR: LoadError: MethodError: no method matching parse_uuid(::String)",
+    "Stacktrace:",
+    " [1] top-level scope"
+  ].join("\n");
+  const summary = summarizeFailure(stdout, "");
+  assert.match(summary, /MethodError/);
+  assert.match(summary, /tenant uuid validation/);
+  assert.doesNotMatch(summary, /^Testing InventoryAllocationSimulator Status/);
+});
+
 test("command validator skips non-runnable not-run placeholders", async () => {
   const dir = await tempDir();
   const result = journalResult({ journal_entry_written: true, gate_file_written: true });
@@ -1505,6 +1877,43 @@ test("command validator rejects foreground dev server e2e commands instead of ha
   const gate = await validateCommandEvidence(dir, result, dir);
   assert.equal(gate.passed, false);
   assert.match(gate.flags[0] ?? "", /^COMMAND_RERUN_UNSAFE_FOREGROUND_SERVER:e2e:/);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("command validator retries timed out reruns before failing", async () => {
+  const source = await readFileText(join(process.cwd(), "src/validators/command-validator.ts"));
+  assert.match(source, /isCommandTimeout\(first\.run\)/);
+  assert.match(source, /`\$\{phase\}:timeout-retry`/);
+  assert.match(source, /retry\?\.run\.exitCode === 0 \? retry : first/);
+});
+
+test("command reruns heartbeat while long commands are active", async () => {
+  const commandSource = await readFileText(join(process.cwd(), "src/validators/command-validator.ts"));
+  const processSource = await readFileText(join(process.cwd(), "src/util/process.ts"));
+  assert.match(commandSource, /markHeartbeat/);
+  assert.match(commandSource, /RUNNING \$\{phase\}: \$\{command\}/);
+  assert.match(processSource, /onHeartbeat/);
+  assert.match(processSource, /setInterval\(\(\) => options\.onHeartbeat/);
+  assert.match(processSource, /clearInterval\(heartbeat\)/);
+});
+
+test("command validator reuses runtime-owned successful command evidence for unchanged trees", async () => {
+  const dir = await tempDir();
+  await mkdir(join(dir, ".yolo"), { recursive: true });
+  await writeFile(join(dir, "src.txt"), "stable\n");
+  await writeFile(join(dir, ".yolo/cache-probe.js"), "const fs=require('fs'); const p='.yolo/cache-count'; const n=fs.existsSync(p)?Number(fs.readFileSync(p,'utf8')):0; fs.writeFileSync(p,String(n+1)); if(n>0) process.exit(17);\n");
+  const result = journalResult({ journal_entry_written: true, gate_file_written: true });
+  result.tests = { green: { command: "node .yolo/cache-probe.js", exitCode: 0, evidence: "probe" } };
+  const first = await validateCommandEvidence(dir, result, dir);
+  const second = await validateCommandEvidence(dir, result, dir);
+  assert.equal(first.passed, true);
+  assert.equal(second.passed, true);
+  assert.equal(await readFileText(join(dir, ".yolo/cache-count")), "1");
+  assert.match(await readFileText(join(dir, ".yolo/command-cache.json")), /node \.yolo\/cache-probe\.js/);
+  await writeFile(join(dir, "src.txt"), "changed\n");
+  const third = await validateCommandEvidence(dir, result, dir);
+  assert.equal(third.passed, false);
+  assert.match(third.flags[0] ?? "", /^COMMAND_RERUN_FAILED:green:/);
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -1693,6 +2102,18 @@ test("worktree sync copies source, journal, and gate changes to root", async () 
   await rm(worktree, { recursive: true, force: true });
 });
 
+test("runtime cleans batch-scoped docker compose resources", async () => {
+  const dockerSource = await readFileText(join(process.cwd(), "src/docker-cleanup.ts"));
+  assert.match(dockerSource, /com\.docker\.compose\.project=\$\{project\}/);
+  assert.match(dockerSource, /volume rm -f/);
+  assert.match(dockerSource, /batch-\$\{String\(batchNumber\)\.padStart\(3, "0"\)\}/);
+  const runtimeSource = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(runtimeSource, /cleanupDockerForBatch\(cwd, batch\.number, "success", config\)/);
+  assert.match(runtimeSource, /cleanupDockerForBatch\(cwd, batch\.number, "failure", config\)/);
+  const recoverySource = await readFileText(join(process.cwd(), "src/recovery.ts"));
+  assert.match(recoverySource, /cleanupBatchDockerResources\(cwd, Number\(batch\), "failure"\)/);
+});
+
 test("retention classifies locked worktree removal errors as non-fatal cleanup skips", () => {
   assert.equal(isTransientRemoveError({ code: "EBUSY" }), true);
   assert.equal(isTransientRemoveError({ code: "ENOTEMPTY" }), true);
@@ -1873,6 +2294,14 @@ test("continue path can infer latest resumable worktree after state loss", async
   await rm(dir, { recursive: true, force: true });
 });
 
+test("continue path preserves support workflow batch identity", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /supportPlanFromRuntimeState/);
+  assert.match(source, /state\?\.inspect\?\.supportKind/);
+  assert.match(source, /makeSupportPlan\(kind, scope/);
+  assert.match(source, /support \? \[support\.item\] : selectBatch/);
+});
+
 test("continue path uses inferred batch when failed state has no valid worktree", async () => {
   const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
   assert.match(source, /const stateWorktree = state\?\.worktree/);
@@ -1880,17 +2309,30 @@ test("continue path uses inferred batch when failed state has no valid worktree"
   assert.match(source, /Number\(inferred\?\.batch \?\? state\?\.batch/);
 });
 
-test("continue path does not fail an active batch before result exists", async () => {
+test("continue path does not fail a fresh active batch before result exists", async () => {
   const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
   assert.match(source, /state\?\.status === "running"/);
   assert.match(source, /no \$\{suffix\} result exists yet/);
   assert.match(source, /Use \/yolo-dashboard instead of \/klevar-yolo continue/);
 });
 
+test("continue path restarts stale active batches without result artifacts", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /runningNoResultIsStale/);
+  assert.match(source, /Recovering stale running batch/);
+  assert.match(source, /runImplementationAgent\(cwd, worktree, batch, config, context\)/);
+  assert.doesNotMatch(source, /state\?\.status === "running" && !\(await exists\(resultFile\)\)[\s\S]{0,220}return;/);
+});
+
 test("continue path can reuse existing valid journal artifacts", async () => {
   const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
   assert.match(source, /reuseOrRunJournalAgent/);
   assert.match(source, /Reusing existing valid journal artifacts/);
+});
+
+test("runtime does not write orphan inbox gate for empty completion probe batches", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /if \(batch\.items\.length > 0\) await writeInboxRouteGate/);
 });
 
 test("runtime source dispatches bugfix recovery for runtime gate failures", async () => {
@@ -1906,6 +2348,28 @@ test("runtime attempts bugfix recovery for audit and validation failures before 
   assert.doesNotMatch(source, /Adversarial validation rejected batch \$\{batch\.number\}[\s\S]{0,160}return null/);
   assert.match(source, /Validation rejected batch \$\{batch\.number\}; dispatching bugfix recovery attempt/);
   assert.match(source, /Runtime gates rejected batch \$\{batch\.number\}; dispatching bugfix recovery attempt/);
+  assert.match(source, /importAgentResultToState\(cwd, batch, "validate", await runValidator/);
+});
+
+test("bugfix recovery retries invalid bugfix result contracts before escalation", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /BUGFIX_RESULT_INVALID/);
+  assert.match(source, /currentFlags = \[\.\.\.bugfixGate\.flags, \.\.\.\(bugfix\.flags \?\? \[\]\), bugfix\.failureType \?\? "BUGFIX_RECOVERY_FAILED"\]/);
+  assert.doesNotMatch(source, /if \(!bugfixGate\.passed \|\| bugfix\.status !== "SUCCESS"\) return \{ result: null/);
+});
+
+test("validation recovery retries runtime gate failures from recovered bugfixes", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /RUNTIME_GATES_REJECTED_AFTER_VALIDATION_BUGFIX/);
+  assert.match(source, /currentValidation = \{ \.\.\.currentValidation, status: "FAILURE", failureType: "RUNTIME_GATES_REJECTED_AFTER_VALIDATION_BUGFIX", flags: currentFlags \}/);
+  assert.doesNotMatch(source, /Recovered batch \$\{batch\.number\} rejected by gates/);
+});
+
+test("validation recovery accepts fixed stale validator red reproducers", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /validationFailureLooksStale/);
+  assert.match(source, /currentValidation\.status === "FAILURE" && await validationFailureLooksStale\(cwd, currentValidation\)/);
+  assert.match(source, /execCommand\(red\.command, cwd, \{ timeoutMs: 5 \* 60_000 \}\)/);
 });
 
 test("runtime does not dispatch bugfix recovery for human security external ops gates", async () => {
@@ -1928,6 +2392,7 @@ test("continue path refuses only terminal non-recoverable results before gates",
   assert.match(source, /AUDIT_PREMATURE/);
   assert.match(source, /NON_RESUMABLE_BATCH/);
   assert.doesNotMatch(source, /result\.status === "FAILURE" \|\| result\.status === "INVALID_RESULT"/);
+  assert.doesNotMatch(source, /return result\.status === "INVALID_RESULT"/);
 });
 
 test("runtime source keeps full and phase scopes as bounded iterative loops", async () => {
@@ -2013,7 +2478,7 @@ test("runtime source continues original full scope after resumed commit", async 
 
 test("continue success marks runtime claim done before committing", async () => {
   const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
-  assert.match(source, /await markRuntimeClaim\(cwd, config, batch, "done"\);\r?\n\s*await setPhase\(cwd, "commit", "Creating runtime-owned continued batch commit"\)/);
+  assert.match(source, /await markRuntimeClaim\(cwd, config, batch, "done"\);[\s\S]{0,220}await setPhase\(cwd, "commit", "Creating runtime-owned continued batch commit"\)/);
 });
 
 test("telegram notifications are env-gated and failure-first", () => {
