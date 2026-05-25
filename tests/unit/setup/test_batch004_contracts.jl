@@ -110,6 +110,24 @@ end
     @test isfile(integration_test_path)
 end
 
+@testset "Batch 032 recommendation matrix close-out artifact is first-class" begin
+    audit_result = batch004_json(".yolo", "batch-results", "batch-032-audit.json")
+    integration_test_path = batch004_path("tests", "integration", "authz", "test_recommendation_matrix_authorization.jl")
+
+    @test audit_result.auditType == "matrix-coverage"
+    @test audit_result.matrixRef == "Roles × Resource Actions"
+    @test audit_result.cellsChecked == 3
+    @test audit_result.cellsPassed == 3
+    @test audit_result.cellsFailed == 0
+    @test haskey(audit_result, :cells)
+    @test Set(String(cell.policyKey) for cell in audit_result.cells) == Set([
+        "admin:recommendation:decide_export",
+        "planner:recommendation:decide_export",
+        "viewer:recommendation:decide_export",
+    ])
+    @test isfile(integration_test_path)
+end
+
 @testset "Authz matrix fixture covers every PRD role/resource cell" begin
     matrix = batch004_json("tests", "fixtures", "authz_matrix.json")
     @test matrix.schemaVersion == 1
