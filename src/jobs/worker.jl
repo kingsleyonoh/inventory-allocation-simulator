@@ -70,6 +70,7 @@ function _simulation_worker(service::JobService)::Nothing
             reap_stale_simulation_runs!(service.simulation_store, service.import_config)
             run_due_recommendation_expiry!(service, service.simulation_store)
             run_due_daily_backtest!(service, service.simulation_store, service.import_config, TenantContext[])
+            dispatch_outbox_once!(service.simulation_store, service.import_config)
         elseif service.simulation_store !== nothing && service.import_config !== nothing
             for ctx in service.simulation_contexts
                 service.shutdown_requested && break
@@ -78,6 +79,7 @@ function _simulation_worker(service::JobService)::Nothing
             end
             run_due_recommendation_expiry!(service, service.simulation_store)
             run_due_daily_backtest!(service, service.simulation_store, service.import_config, service.simulation_contexts)
+            dispatch_outbox_once!(service.simulation_store, service.import_config)
         end
         sleep(service.poll_interval_seconds)
     end

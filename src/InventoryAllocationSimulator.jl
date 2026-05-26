@@ -27,8 +27,13 @@ include("planning/simulations.jl")
 include("planning/backtests.jl")
 include("recommendations/decisions.jl")
 include("notifications/local_notifications.jl")
+include("events/envelope.jl")
+include("integrations/http_client.jl")
+include("integrations/notification_hub.jl")
+include("integrations/workflow_engine.jl")
 include("imports/importer.jl")
 include("jobs/locks.jl")
+include("jobs/outbox_jobs.jl")
 include("jobs/worker.jl")
 include("recommendations/expiry_jobs.jl")
 include("observability/logging.jl")
@@ -67,6 +72,8 @@ export AllocationSolverConfig, solve_allocation_model, solver_outcome_decision, 
 export create_simulation_run!, list_simulation_runs, get_simulation_run, cancel_simulation_run!
 export list_recommendations, get_recommendation, approve_recommendation!, reject_recommendation!, expire_recommendation!, export_recommendation!, export_recommendation_csv, recommendation_view_model, build_recommendation_high_value_notification_event
 export NotificationEventSpec, notification_event_spec, validate_notification_event!, notification_severity, resolve_notification_recipients, build_local_notification_event, create_local_notifications!, list_notifications, mark_notification_read!, mirror_notification_hub_outbox!
+export build_event_envelope, validate_event_payload_tokens!, build_notification_payload, enqueue_notification_hub_event!, dispatch_notification_hub!
+export enqueue_workflow_execution!, dispatch_workflow_engine!, dispatch_outbox_once!, outbox_dispatcher!, benchmark_outbox_dispatch_60s!
 export expire_due_recommendations!, recommendation_expiry_due, run_due_recommendation_expiry!
 export claim_next_simulation_run!, claim_next_simulation_run_for_system!, simulation_worker!, reap_stale_simulation_runs!, generate_demand_scenarios!
 export run_daily_backtest!, run_daily_backtests!, daily_backtest_due, persist_policy_backtest_results!

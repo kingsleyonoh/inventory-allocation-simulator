@@ -3,6 +3,11 @@
 const host = process.env.APP_HOST || '127.0.0.1';
 const port = process.env.APP_PORT || '8125';
 const baseURL = process.env.PUBLIC_BASE_URL || `http://${host}:${port}`;
+const postgresPort = process.env.POSTGRES_PORT || '55432';
+const postgresUser = process.env.POSTGRES_USER || 'inventory';
+const postgresPassword = process.env.POSTGRES_PASSWORD || 'your-password-here';
+const postgresDb = process.env.POSTGRES_DB || 'inventory_allocation';
+const databaseUrl = process.env.DATABASE_URL || `postgres://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${postgresDb}`;
 
 module.exports = {
   testDir: 'tests/e2e',
@@ -14,7 +19,8 @@ module.exports = {
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'julia --project src/Main.jl',
+    // start_webserver.js runs docker compose, then executes: julia --project src/Main.jl
+    command: 'node tests/e2e/helpers/start_webserver.js',
     url: `${baseURL}/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 90_000,
@@ -25,7 +31,11 @@ module.exports = {
       APP_PORT: port,
       PUBLIC_BASE_URL: baseURL,
       GENIE_LOG_REQUESTS: process.env.GENIE_LOG_REQUESTS || 'false',
-      DATABASE_URL: process.env.DATABASE_URL || 'postgres://inventory:your-password-here@127.0.0.1:5432/inventory_allocation',
+      POSTGRES_PORT: postgresPort,
+      POSTGRES_USER: postgresUser,
+      POSTGRES_PASSWORD: postgresPassword,
+      POSTGRES_DB: postgresDb,
+      DATABASE_URL: databaseUrl,
       REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379/0',
       DUCKDB_PATH: process.env.DUCKDB_PATH || './data/e2e-backtests.duckdb',
       SESSION_SECRET: process.env.SESSION_SECRET || 'e2e-session-secret-placeholder',

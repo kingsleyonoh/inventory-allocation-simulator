@@ -29,13 +29,21 @@ const csvFixtures = {
 };
 
 function e2eEnv() {
+  const postgresPort = process.env.POSTGRES_PORT || '55432';
+  const postgresUser = process.env.POSTGRES_USER || 'inventory';
+  const postgresPassword = process.env.POSTGRES_PASSWORD || 'your-password-here';
+  const postgresDb = process.env.POSTGRES_DB || 'inventory_allocation';
   const inheritedDatabaseUrl = process.env.DATABASE_URL || '';
   const databaseUrl = inheritedDatabaseUrl.includes('placeholder-password') || inheritedDatabaseUrl.length === 0
-    ? 'postgres://inventory:your-password-here@127.0.0.1:5432/inventory_allocation' // placeholder local Docker default
+    ? `postgres://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${postgresDb}` // isolated local Docker default
     : inheritedDatabaseUrl;
   return {
     ...process.env,
     APP_ENV: process.env.APP_ENV || 'test',
+    POSTGRES_PORT: postgresPort,
+    POSTGRES_USER: postgresUser,
+    POSTGRES_PASSWORD: postgresPassword,
+    POSTGRES_DB: postgresDb,
     DATABASE_URL: databaseUrl,
     REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379/0',
     DUCKDB_PATH: process.env.DUCKDB_PATH || './data/e2e-backtests.duckdb',
@@ -64,7 +72,7 @@ function runFixture(args) {
 }
 
 test.describe('setup/login/import/simulation/approval smoke over real HTTP', () => {
-  test.setTimeout(180_000);
+  test.setTimeout(420_000);
   let fixture;
 
   test.beforeAll(() => {
