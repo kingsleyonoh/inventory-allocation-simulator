@@ -125,16 +125,21 @@ function _dispatch_outbox_rows!(store, config::AppConfig, rows; now::DateTime, h
             end
         end
         persist_state!(row)
-        @info structured_log_json(
-            "info",
-            "outbox dispatch row completed";
-            request_id = request_id,
-            log_module = "outbox",
-            tenant_id = string(row[:tenant_id]),
-            fields = Dict("target" => row[:target], "status" => row[:status], "attempts" => row[:attempts]),
-        )
+        _log_outbox_row_completed(row, request_id)
     end
     return (sent = sent, failed = failed, dead_lettered = dead_lettered, skipped_disabled = skipped_disabled)
+end
+
+function _log_outbox_row_completed(row, request_id::Union{Nothing,AbstractString})::Nothing
+    @info structured_log_json(
+        "info",
+        "outbox dispatch row completed";
+        request_id = request_id,
+        log_module = "outbox",
+        tenant_id = string(row[:tenant_id]),
+        fields = Dict("target" => row[:target], "status" => row[:status], "attempts" => row[:attempts]),
+    )
+    return nothing
 end
 
 function dispatch_outbox_once!(store::MemoryTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), limit::Int = 100, http_post::Function = integration_http_post, request_id::Union{Nothing,AbstractString} = nothing)::NamedTuple
