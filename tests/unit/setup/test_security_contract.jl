@@ -41,3 +41,15 @@ end
     @test count(_ -> true, eachmatch(r"resources:\s*\n\s*limits:", prod_compose)) >= 3
     @test count(_ -> true, eachmatch(r"memory:\s*[0-9]+[mMgG]", prod_compose)) >= 3
 end
+
+@testset "Phase 4 adapter security contracts" begin
+    status_probe_source = security_readroot("src", "integrations", "status_probe.jl")
+    integration_controller_source = security_readroot("src", "web", "controllers", "integration_controller.jl")
+    metrics_source = security_readroot("src", "observability", "metrics_prometheus.jl")
+
+    @test occursin("Adapter health check failed", status_probe_source)
+    @test !occursin(raw"Adapter failed: $(sprint(showerror, err))", status_probe_source)
+    @test count(occursin.(Ref("authorize!(ctx, \"configure\", \"integration\")"), split(integration_controller_source, '\n'))) >= 2
+    @test occursin("metrics_authorized", metrics_source)
+    @test occursin("candidate == token", metrics_source)
+end

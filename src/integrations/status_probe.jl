@@ -18,8 +18,8 @@ function _probe_http_adapter(name::AbstractString, label::AbstractString, enable
             return _adapter_status(name, label, true; status = "healthy", detail = "Adapter reachable")
         end
         return _adapter_status(name, label, true; status = "failed", detail = "Adapter failed with HTTP $(response.status)")
-    catch err
-        return _adapter_status(name, label, true; status = "failed", detail = "Adapter failed: $(sprint(showerror, err))")
+    catch
+        return _adapter_status(name, label, true; status = "failed", detail = "Adapter health check failed")
     end
 end
 

@@ -121,6 +121,16 @@ end
     @test occursin("Adapter failed", html)
     @test occursin("aria-label=\"Integration adapter health\"", html)
 
+    secret_error_statuses = integration_adapter_statuses(config; now = DateTime(2026, 5, 7, 12), http_get = (url, headers; timeout_seconds = 10) -> begin
+        error("timeout contacting $(url) with $(headers["X-API-Key"])")
+    end)
+    secret_error_html = render_integration_settings_page(config, secret_error_statuses)
+    @test occursin("Adapter health check failed", secret_error_html)
+    @test !occursin("placeholder-workflow-key", secret_error_html)
+    @test !occursin("placeholder-delivery-key", secret_error_html)
+    @test !occursin("workflows.example.test", secret_error_html)
+    @test !occursin("delivery.example.test", secret_error_html)
+
     routes = route_definitions()
     @test any(route -> route.path == "/integrations" && route.method == :GET, routes)
     @test any(route -> route.path == "/settings/integrations" && route.method == :GET, routes)
