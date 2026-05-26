@@ -15,7 +15,7 @@ mutable struct JobService
 end
 
 function build_job_service()::JobService
-    return JobService(true, ["import_job_worker", "simulation_worker", "stale_run_reaper", "recommendation_expiry", "daily_backtest", "outbox_dispatcher"], false, false, Task[], nothing, nothing, TenantContext[], nothing, TenantContext[], nothing, nothing, 0.05)
+    return JobService(true, ["import_job_worker", "simulation_worker", "stale_run_reaper", "recommendation_expiry", "daily_backtest", "outbox_dispatcher", "integration_status_probe"], false, false, Task[], nothing, nothing, TenantContext[], nothing, TenantContext[], nothing, nothing, 0.05)
 end
 
 function import_job_worker!(store::AbstractTenantAdminStore, config::AppConfig, ctx::TenantContext; worker_id::AbstractString = "import-worker")
@@ -70,7 +70,9 @@ function _simulation_worker(service::JobService)::Nothing
             reap_stale_simulation_runs!(service.simulation_store, service.import_config)
             run_due_recommendation_expiry!(service, service.simulation_store)
             run_due_daily_backtest!(service, service.simulation_store, service.import_config, TenantContext[])
-            dispatch_outbox_once!(service.simulation_store, service.import_config)
+            probe_result = run_integration_status_probe!(service.simulation_store, service.import_config)
+            @info structured_log_json("info", "integration status probe completed"; log_module = "jobs", fields = Dict("tenants_checked" => probe_result.tenants_checked, "failed_count" => probe_result.failed_count, "notifications_created" => probe_result.notifications_created))
+            dispatch_outbox_once!(service.simulation_store, service.import_config; request_id = "job:simulation-worker")
         elseif service.simulation_store !== nothing && service.import_config !== nothing
             for ctx in service.simulation_contexts
                 service.shutdown_requested && break
@@ -79,7 +81,10 @@ function _simulation_worker(service::JobService)::Nothing
             end
             run_due_recommendation_expiry!(service, service.simulation_store)
             run_due_daily_backtest!(service, service.simulation_store, service.import_config, service.simulation_contexts)
-            dispatch_outbox_once!(service.simulation_store, service.import_config)
+            probe_results = [probe_integration_status!(service.simulation_store, service.import_config, ctx.tenant_id) for ctx in service.simulation_contexts]
+            probe_result = (tenants_checked = length(service.simulation_contexts), failed_count = sum(result.failed_count for result in probe_results), notifications_created = sum(result.notifications_created for result in probe_results))
+            @info structured_log_json("info", "integration status probe completed"; log_module = "jobs", fields = Dict("tenants_checked" => probe_result.tenants_checked, "failed_count" => probe_result.failed_count, "notifications_created" => probe_result.notifications_created))
+            dispatch_outbox_once!(service.simulation_store, service.import_config; request_id = "job:simulation-worker")
         end
         sleep(service.poll_interval_seconds)
     end

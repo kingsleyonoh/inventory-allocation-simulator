@@ -96,7 +96,7 @@ function _record_outbox_exception!(row, now::DateTime, err)::Symbol
     return :failed
 end
 
-function _dispatch_outbox_rows!(store, config::AppConfig, rows; now::DateTime, http_post::Function, persist_state!::Function)::NamedTuple
+function _dispatch_outbox_rows!(store, config::AppConfig, rows; now::DateTime, http_post::Function, persist_state!::Function, request_id::Union{Nothing,AbstractString} = nothing)::NamedTuple
     sent = 0
     failed = 0
     dead_lettered = 0
@@ -125,18 +125,26 @@ function _dispatch_outbox_rows!(store, config::AppConfig, rows; now::DateTime, h
             end
         end
         persist_state!(row)
+        @info structured_log_json(
+            "info",
+            "outbox dispatch row completed";
+            request_id = request_id,
+            log_module = "outbox",
+            tenant_id = string(row[:tenant_id]),
+            fields = Dict("target" => row[:target], "status" => row[:status], "attempts" => row[:attempts]),
+        )
     end
     return (sent = sent, failed = failed, dead_lettered = dead_lettered, skipped_disabled = skipped_disabled)
 end
 
-function dispatch_outbox_once!(store::MemoryTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), limit::Int = 100, http_post::Function = integration_http_post)::NamedTuple
+function dispatch_outbox_once!(store::MemoryTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), limit::Int = 100, http_post::Function = integration_http_post, request_id::Union{Nothing,AbstractString} = nothing)::NamedTuple
     rows = _due_outbox_rows(store, now; limit = limit)
-    return _dispatch_outbox_rows!(store, config, rows; now = now, http_post = http_post, persist_state! = row -> nothing)
+    return _dispatch_outbox_rows!(store, config, rows; now = now, http_post = http_post, persist_state! = row -> nothing, request_id = request_id)
 end
 
-function dispatch_outbox_once!(store::SqlTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), limit::Int = 100, http_post::Function = integration_http_post)::NamedTuple
+function dispatch_outbox_once!(store::SqlTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), limit::Int = 100, http_post::Function = integration_http_post, request_id::Union{Nothing,AbstractString} = nothing)::NamedTuple
     rows = _due_outbox_rows(store, now; limit = limit)
-    return _dispatch_outbox_rows!(store, config, rows; now = now, http_post = http_post, persist_state! = row -> _persist_sql_outbox_row_state!(store, row))
+    return _dispatch_outbox_rows!(store, config, rows; now = now, http_post = http_post, persist_state! = row -> _persist_sql_outbox_row_state!(store, row), request_id = request_id)
 end
 
 function benchmark_outbox_dispatch_60s!(store::AbstractTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), http_post::Function = integration_http_post)::NamedTuple
@@ -146,6 +154,14 @@ function benchmark_outbox_dispatch_60s!(store::AbstractTenantAdminStore, config:
     return (sent = result.sent, failed = result.failed, dead_lettered = result.dead_lettered, elapsed_seconds = elapsed, within_60_seconds = elapsed <= 60.0)
 end
 
-function outbox_dispatcher!(store::AbstractTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), http_post::Function = integration_http_post)::NamedTuple
-    return dispatch_outbox_once!(store, config; now = now, http_post = http_post)
+function outbox_dispatcher!(store::AbstractTenantAdminStore, config::AppConfig; now::DateTime = Dates.now(), http_post::Function = integration_http_post, request_id::Union{Nothing,AbstractString} = nothing)::NamedTuple
+    result = dispatch_outbox_once!(store, config; now = now, http_post = http_post, request_id = request_id)
+    @info structured_log_json(
+        "info",
+        "outbox dispatcher completed";
+        request_id = request_id,
+        log_module = "outbox",
+        fields = Dict("sent" => result.sent, "failed" => result.failed, "dead_lettered" => result.dead_lettered, "skipped_disabled" => result.skipped_disabled),
+    )
+    return result
 end

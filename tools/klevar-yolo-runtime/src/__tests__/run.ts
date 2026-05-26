@@ -25,7 +25,7 @@ import { nextBatchNumber, removeWindowsReservedDeviceFiles } from "../util/git.j
 import { failRuntimeFromError, markHeartbeat, resetRuntimeState, setCheckpoint, setPhase } from "../telemetry.js";
 import { validateJournalContract } from "../journal-contract.js";
 import { validateAll, gatesPassed } from "../validators/index.js";
-import { canonicalizeBatchResultManifests, classifyBatchType, completedBatchCommitExists, findLatestResumableBatch, journalSource, mergeRecoveredResult, mergeRecoveredResultFromDisk } from "../runtime.js";
+import { canonicalizeBatchResultManifests, classifyBatchType, completedBatchCommitExists, findLatestResumableBatch, journalSource, mergeRecoveredResult, mergeRecoveredResultFromDisk, validationFailureContradictedByRecoveredEvidence } from "../runtime.js";
 import { buildBatchContext } from "../context-builder.js";
 import { adjudicationAccepted, adjudicationAllowed, adjudicationNeedsBugfix, normalizeAdjudication, readAdjudicationFile } from "../adjudication.js";
 import { classifyGateFindings } from "../gate-findings.js";
@@ -2067,6 +2067,42 @@ test("bugfix recovery preserves canonical TDD evidence when bugfix uses named re
   assert.equal(recovered.tests?.e2e?.evidence, "e2e still green");
 });
 
+test("bugfix recovery detects stale adversarial validation contradicted by recovered evidence", () => {
+  const implementation = journalResult({ journal_entry_written: true, gate_file_written: true });
+  implementation.tests = { e2e: { required: true, command: "npx playwright test", exitCode: 0, evidence: "8/8 browser tests passed" } };
+  implementation.wiring = { required: true, entrypoints: [{ type: "ui-route", path: "GET /integrations", verifiedBy: "e2e" }] };
+  const bugfix = journalResult({ journal_entry_written: true, gate_file_written: true });
+  bugfix.agent = "bugfix";
+  bugfix.status = "SUCCESS";
+  bugfix.tests = {
+    regression: { command: "python scripts/static_probe.py", exitCode: 0, evidence: "all wiring probes true" },
+    e2e: { required: true, command: "npx playwright test", exitCode: 0, evidence: "8/8 browser tests passed after fix" }
+  };
+  bugfix.wiring = {
+    required: true,
+    entrypoints: [
+      { type: "job", path: "integration_status_probe job via _simulation_worker", verifiedBy: "static probe" },
+      { type: "api", path: "API controller error responses with X-Request-ID", verifiedBy: "static probe" },
+      { type: "job", path: "outbox_dispatcher structured request-id logging", verifiedBy: "static probe" }
+    ]
+  };
+  bugfix.flags = ["INTEGRATION_STATUS_PROBE_WIRED", "REQUEST_ID_LOGGING_PROPAGATED", "E2E_REAL_HTTP_PASS"];
+  const recovered = mergeRecoveredResult(implementation, bugfix);
+  const staleValidation = journalResult({ journal_entry_written: true, gate_file_written: true });
+  staleValidation.agent = "validate";
+  staleValidation.status = "FAILURE";
+  staleValidation.failureType = "UNWIRED_CODE_AND_AUTHZ_DRIFT";
+  staleValidation.flags = [
+    "MISSING_RUNNABLE_E2E_COMMAND",
+    "ENTRYPOINT_UNVERIFIED:integration_status_probe job via _simulation_worker",
+    "ENTRYPOINT_UNVERIFIED:API controller error responses with X-Request-ID",
+    "ENTRYPOINT_UNVERIFIED:outbox_dispatcher structured request-id logging"
+  ];
+  assert.equal(validationFailureContradictedByRecoveredEvidence(staleValidation, recovered, bugfix), true);
+  staleValidation.flags = [...staleValidation.flags!, "BUSINESS_LOGIC_UNVERIFIED:manual reviewer found untested invariant"];
+  assert.equal(validationFailureContradictedByRecoveredEvidence(staleValidation, recovered, bugfix), false);
+});
+
 test("bugfix recovery can replace corrected implementation manifest fields", () => {
   const implementation = journalResult({ journal_entry_written: true, gate_file_written: true });
   implementation.filesChanged = ["src/missing/File.java", "node_modules/"];
@@ -2368,6 +2404,14 @@ test("runtime attempts bugfix recovery for audit and validation failures before 
   assert.match(source, /importAgentResultToState\(cwd, batch, "validate", await runValidator/);
 });
 
+test("bugfix recovery budget resets for distinct failure signatures", async () => {
+  const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
+  assert.match(source, /function failureSignature\(flags: string\[\], failureType\?: string \| null\)/);
+  assert.match(source, /let currentSignature = failureSignature\(currentFlags, currentValidation\.failureType\)/);
+  assert.match(source, /if \(nextSignature !== currentSignature\) \{[\s\S]{0,120}attemptForSignature = 0;/);
+  assert.match(source, /runBugfixAgent\(rootCwd, cwd, batch, config, context, currentValidation, currentFlags, totalAttempts\)/);
+});
+
 test("bugfix recovery retries invalid bugfix result contracts before escalation", async () => {
   const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
   assert.match(source, /BUGFIX_RESULT_INVALID/);
@@ -2385,7 +2429,8 @@ test("validation recovery retries runtime gate failures from recovered bugfixes"
 test("validation recovery accepts fixed stale validator red reproducers", async () => {
   const source = await readFileText(join(process.cwd(), "src/runtime.ts"));
   assert.match(source, /validationFailureLooksStale/);
-  assert.match(source, /currentValidation\.status === "FAILURE" && await validationFailureLooksStale\(cwd, currentValidation\)/);
+  assert.match(source, /currentValidation\.status === "FAILURE" && \(/);
+  assert.match(source, /validationFailureContradictedByRecoveredEvidence\(currentValidation, recovered, bugfix\)/);
   assert.match(source, /execCommand\(red\.command, cwd, \{ timeoutMs: 5 \* 60_000 \}\)/);
 });
 

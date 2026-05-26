@@ -27,6 +27,10 @@ test.describe('operations console UI over real HTTP', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login\?next=%2Fdashboard$/);
     await expect(page.getByRole('heading', { name: 'Operations console sign in' })).toBeVisible();
+
+    await page.goto('/integrations');
+    await expect(page).toHaveURL(/\/login\?next=%2Fintegrations$/);
+    await expect(page.getByRole('heading', { name: 'Operations console sign in' })).toBeVisible();
   });
 
   test('catalog management form routes fail closed over real HTTP', async ({ request }) => {

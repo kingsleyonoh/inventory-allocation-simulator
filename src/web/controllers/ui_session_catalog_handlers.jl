@@ -35,8 +35,8 @@ function _ui_action_failure_response(title::AbstractString, err)
 end
 
 function _ui_unavailable_response(title::AbstractString, err)
-    message = err isa ApiError ? err.message : "The page could not be loaded. Please retry or contact an administrator."
-    status = err isa ApiError ? err.status : 500
+    message = err isa ApiError || err isa AuthzError ? err.message : "The page could not be loaded. Please retry or contact an administrator."
+    status = err isa ApiError || err isa AuthzError ? err.status : 500
     return _html_response("<h1>$(_h(title))</h1><p>$(_h(message))</p>"; status = status)
 end
 

@@ -7,9 +7,21 @@ function _json_response(payload; status::Int = 200)
     return respond(JSON3.write(payload), :json, status)
 end
 
+function _request_headers_dict()::Dict{String,String}
+    req = Requests.request()
+    req === nothing && return Dict{String,String}()
+    return Dict(String(key) => String(value) for (key, value) in req.headers)
+end
+
+function _request_id_from_http()::String
+    return request_id_from_headers(_request_headers_dict())
+end
+
 function _error_response(err)
-    status, body = endpoint_error_response(err)
-    return respond(body, :json, status)
+    request_id = _request_id_from_http()
+    status, body, headers = endpoint_error_response(err; request_id = request_id)
+    response_headers = ["Content-Type" => "application/json"; collect(headers)]
+    return HTTP.Response(status, response_headers, body)
 end
 
 function _request_header(name::AbstractString)::Union{Nothing,String}

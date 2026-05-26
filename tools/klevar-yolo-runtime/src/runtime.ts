@@ -552,9 +552,21 @@ async function validateAdversarial(rootCwd: string, cwd: string, batch: Batch, c
   let currentValidation = validation;
   let currentFlags = flags;
   const attempts = Math.max(1, config.recovery?.maxBugfixAttempts ?? 1);
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    await setPhase(rootCwd, "bugfix", `Validation rejected batch ${batch.number}; dispatching bugfix recovery attempt ${attempt}/${attempts}`);
-    const bugfix = await runBugfixAgent(rootCwd, cwd, batch, config, context, currentValidation, currentFlags, attempt);
+  const maxTotalAttempts = attempts * 4;
+  let totalAttempts = 0;
+  let currentSignature = failureSignature(currentFlags, currentValidation.failureType);
+  let attemptForSignature = 0;
+  while (totalAttempts < maxTotalAttempts) {
+    const nextSignature = failureSignature(currentFlags, currentValidation.failureType);
+    if (nextSignature !== currentSignature) {
+      currentSignature = nextSignature;
+      attemptForSignature = 0;
+    }
+    if (attemptForSignature >= attempts) break;
+    attemptForSignature += 1;
+    totalAttempts += 1;
+    await setPhase(rootCwd, "bugfix", `Validation rejected batch ${batch.number}; dispatching bugfix recovery attempt ${attemptForSignature}/${attempts} for ${currentSignature}`);
+    const bugfix = await runBugfixAgent(rootCwd, cwd, batch, config, context, currentValidation, currentFlags, totalAttempts);
     const bugfixGate = validateContract(bugfix);
     if (!bugfixGate.passed || bugfix.status !== "SUCCESS") {
       currentFlags = [...bugfixGate.flags, ...(bugfix.flags ?? []), bugfix.failureType ?? "BUGFIX_RECOVERY_FAILED"];
@@ -580,7 +592,10 @@ async function validateAdversarial(rootCwd: string, cwd: string, batch: Batch, c
     currentValidation = (await importAgentResultToState(cwd, batch, "validate", await runValidator(rootCwd, cwd, batch, config, `${context}\n\n---\n\n# Bugfix Recovery Applied\n${JSON.stringify(bugfix, null, 2)}`))).currentResult;
     const secondGate = validateContract(currentValidation);
     if (secondGate.passed && currentValidation.status === "SUCCESS") return recovered;
-    if (secondGate.passed && currentValidation.status === "FAILURE" && await validationFailureLooksStale(cwd, currentValidation)) return recovered;
+    if (secondGate.passed && currentValidation.status === "FAILURE" && (
+      await validationFailureLooksStale(cwd, currentValidation)
+      || validationFailureContradictedByRecoveredEvidence(currentValidation, recovered, bugfix)
+    )) return recovered;
     currentFlags = [...secondGate.flags, ...(currentValidation.flags ?? []), currentValidation.failureType ?? "VALIDATOR_REJECTED_AFTER_BUGFIX"];
   }
   await finishRuntime(rootCwd, "failed", `Adversarial validation rejected recovered batch ${batch.number}: ${currentFlags.join(", ")}`);
@@ -595,8 +610,50 @@ async function validationFailureLooksStale(cwd: string, validation: BatchResult)
   return run.exitCode === 0;
 }
 
-function isRunnableValidationCommand(command: string): boolean {
-  const value = command.trim();
+export function validationFailureContradictedByRecoveredEvidence(validation: BatchResult, recovered: BatchResult, bugfix: BatchResult): boolean {
+  if (validation.status !== "FAILURE") return false;
+  const flags = [...(validation.flags ?? []), validation.failureType].filter((flag): flag is string => Boolean(flag));
+  const blocking = flags.filter((flag) => !isPositiveValidationFlag(flag));
+  if (blocking.length === 0) return false;
+  return blocking.every((flag) => recoveredEvidenceContradictsFlag(flag, recovered, bugfix));
+}
+
+function recoveredEvidenceContradictsFlag(flag: string, recovered: BatchResult, bugfix: BatchResult): boolean {
+  if (flag === "MISSING_RUNNABLE_E2E_COMMAND") return hasPassingRunnableE2e(recovered) || hasPassingRunnableE2e(bugfix);
+  if (flag.startsWith("ENTRYPOINT_UNVERIFIED:")) {
+    const entrypoint = flag.slice("ENTRYPOINT_UNVERIFIED:".length);
+    return hasWiringEntrypointEvidence(recovered, entrypoint) || hasWiringEntrypointEvidence(bugfix, entrypoint);
+  }
+  if (/UNWIRED|DRIFT|NOT_PROPAGATED|MISSING/i.test(flag)) {
+    return hasPassingValidationEvidence(bugfix) && (bugfix.flags ?? []).some((fixedFlag) => /WIRED|PROPAGATED|FIXED|PASS/i.test(fixedFlag));
+  }
+  return false;
+}
+
+function isPositiveValidationFlag(flag: string): boolean {
+  return /(?:_PASS|_PASSED|_FIXED|_WIRED|_PROPAGATED|_SATISFIED|_COVERED|_ENFORCED)$/i.test(flag);
+}
+
+function hasPassingRunnableE2e(result: BatchResult): boolean {
+  const e2e = result.tests?.e2e;
+  return Boolean(e2e?.command && e2e.exitCode === 0 && isRunnableValidationCommand(e2e.command));
+}
+
+function hasPassingValidationEvidence(result: BatchResult): boolean {
+  return Object.values(result.tests ?? {}).some((test) => Boolean(test?.command && test.exitCode === 0));
+}
+
+function hasWiringEntrypointEvidence(result: BatchResult, expected: string): boolean {
+  const expectedKey = evidenceKey(expected);
+  return (result.wiring?.entrypoints ?? []).some((entrypoint) => evidenceKey(typeof entrypoint === "string" ? entrypoint : JSON.stringify(entrypoint)).includes(expectedKey));
+}
+
+function evidenceKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function isRunnableValidationCommand(command: string | undefined): command is string {
+  const value = command?.trim() ?? "";
   if (!value || /^(not applicable|n\/a|none|skipped?|manual|unknown)$/i.test(value)) return false;
   return /^(node|npm|npx|bash|sh|python|python3|ruby|go|cargo|pytest|julia|nim|deno|bun|pnpm|yarn)\b/i.test(value);
 }
@@ -609,10 +666,22 @@ async function recoverGateFailure(rootCwd: string, cwd: string, batch: Batch, co
   let recovered = implementation;
   let currentFlags = flags;
   const attempts = Math.max(1, config.recovery?.maxBugfixAttempts ?? 1);
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    await setPhase(rootCwd, "bugfix", `Runtime gates rejected batch ${batch.number}; dispatching bugfix recovery attempt ${attempt}/${attempts}`);
+  const maxTotalAttempts = attempts * 4;
+  let totalAttempts = 0;
+  let currentSignature = failureSignature(currentFlags, "RUNTIME_GATES_REJECTED");
+  let attemptForSignature = 0;
+  while (totalAttempts < maxTotalAttempts) {
+    const nextSignature = failureSignature(currentFlags, "RUNTIME_GATES_REJECTED");
+    if (nextSignature !== currentSignature) {
+      currentSignature = nextSignature;
+      attemptForSignature = 0;
+    }
+    if (attemptForSignature >= attempts) break;
+    attemptForSignature += 1;
+    totalAttempts += 1;
+    await setPhase(rootCwd, "bugfix", `Runtime gates rejected batch ${batch.number}; dispatching bugfix recovery attempt ${attemptForSignature}/${attempts} for ${currentSignature}`);
     const pseudoValidation: BatchResult = { ...implementation, status: "FAILURE", failureType: "RUNTIME_GATES_REJECTED", flags: currentFlags };
-    const bugfix = await runBugfixAgent(rootCwd, cwd, batch, config, context, pseudoValidation, currentFlags, attempt);
+    const bugfix = await runBugfixAgent(rootCwd, cwd, batch, config, context, pseudoValidation, currentFlags, totalAttempts);
     const bugfixGate = validateContract(bugfix);
     if (!bugfixGate.passed || bugfix.status !== "SUCCESS") {
       currentFlags = [...bugfixGate.flags, ...(bugfix.flags ?? []), bugfix.failureType ?? "BUGFIX_RECOVERY_FAILED"];
@@ -632,6 +701,15 @@ async function recoverGateFailure(rootCwd: string, cwd: string, batch: Batch, co
     if (adjudication === "human") return { result: null, flags: currentFlags };
   }
   return { result: null, flags: currentFlags };
+}
+
+function failureSignature(flags: string[], failureType?: string | null): string {
+  const normalized = [failureType ?? "UNKNOWN_FAILURE", ...flags]
+    .filter(Boolean)
+    .map((flag) => flag.replace(/^RECOVERED_SOURCE_FLAG:/, ""))
+    .filter((flag) => !/_PASS$/.test(flag) && !flag.endsWith("_FIXED"))
+    .sort();
+  return normalized.join("|") || "UNKNOWN_FAILURE";
 }
 
 function requiresHumanSecurityApproval(flags: string[]): boolean {

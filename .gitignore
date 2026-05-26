@@ -77,3 +77,13 @@ AGENTS.md
 .claude/shell-snapshots/
 .claude/todos/
 .claude/statsig/
+
+# Klevar local operational tooling — managed by /refresh and never app source
+tools/klevar-yolo-runtime/
+tools/klevar-pi-package/
+.yolo/refresh/
+.yolo/runtime/
+.yolo/runtime-lock.json
+.yolo/runtime-pid.json
+.yolo/command-cache.json
+.pi/browser/

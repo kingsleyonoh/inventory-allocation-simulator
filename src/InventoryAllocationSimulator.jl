@@ -31,6 +31,8 @@ include("events/envelope.jl")
 include("integrations/http_client.jl")
 include("integrations/notification_hub.jl")
 include("integrations/workflow_engine.jl")
+include("integrations/delivery_gateway.jl")
+include("integrations/status_probe.jl")
 include("imports/importer.jl")
 include("jobs/locks.jl")
 include("jobs/outbox_jobs.jl")
@@ -73,15 +75,16 @@ export create_simulation_run!, list_simulation_runs, get_simulation_run, cancel_
 export list_recommendations, get_recommendation, approve_recommendation!, reject_recommendation!, expire_recommendation!, export_recommendation!, export_recommendation_csv, recommendation_view_model, build_recommendation_high_value_notification_event
 export NotificationEventSpec, notification_event_spec, validate_notification_event!, notification_severity, resolve_notification_recipients, build_local_notification_event, create_local_notifications!, list_notifications, mark_notification_read!, mirror_notification_hub_outbox!
 export build_event_envelope, validate_event_payload_tokens!, build_notification_payload, enqueue_notification_hub_event!, dispatch_notification_hub!
-export enqueue_workflow_execution!, dispatch_workflow_engine!, dispatch_outbox_once!, outbox_dispatcher!, benchmark_outbox_dispatch_60s!
+export enqueue_workflow_execution!, dispatch_workflow_engine!, delivery_eta_freshness, delivery_eta_freshness_from_redis_fixture, integration_adapter_statuses, probe_integration_status!, run_integration_status_probe!, dispatch_outbox_once!, outbox_dispatcher!, benchmark_outbox_dispatch_60s!
 export expire_due_recommendations!, recommendation_expiry_due, run_due_recommendation_expiry!
 export claim_next_simulation_run!, claim_next_simulation_run_for_system!, simulation_worker!, reap_stale_simulation_runs!, generate_demand_scenarios!
 export run_daily_backtest!, run_daily_backtests!, daily_backtest_due, persist_policy_backtest_results!
 export fetch_demand_history, build_job_service, run_due_daily_backtest!
 export create_import_job!, get_import_result, claim_next_import_job!, process_import_job!, import_job_worker!
 export render_login_page, render_protected_route_notice, render_dashboard_page, render_import_center_page, render_warehouses_page, render_skus_page, authenticate_ui_login!
-export render_transfer_lanes_page, render_allocation_policies_page, render_tenant_settings_page, render_simulations_page, render_simulation_detail_page, render_recommendation_detail_page, render_notifications_page
+export render_transfer_lanes_page, render_allocation_policies_page, render_tenant_settings_page, render_simulations_page, render_simulation_detail_page, render_recommendation_detail_page, render_notifications_page, render_integration_settings_page
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
+export request_id_from_headers, structured_log_json
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli
 export start!, stop!

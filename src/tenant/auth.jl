@@ -18,9 +18,11 @@ function Base.showerror(io::IO, err::AuthError)
     print(io, err.code, ": ", err.message)
 end
 
-function endpoint_error_response(err::AuthError)::Tuple{Int,String}
-    body = format_error_response(err.code, err.message; details = Any[])
-    return err.status, JSON3.write(body)
+function endpoint_error_response(err::AuthError; request_id::Union{Nothing,AbstractString} = nothing)
+    headers = Dict{String,String}()
+    request_id !== nothing && (headers["X-Request-ID"] = String(request_id))
+    body = format_error_response(err.code, err.message; details = Any[], request_id = request_id)
+    return request_id === nothing ? (err.status, JSON3.write(body)) : (err.status, JSON3.write(body), headers)
 end
 
 struct TenantAuthRecord

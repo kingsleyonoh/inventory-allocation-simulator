@@ -166,7 +166,9 @@ end
     @test hasmethod(dispatch_outbox_once!, Tuple{SqlTenantAdminStore, AppConfig})
     @test hasmethod(outbox_dispatcher!, Tuple{SqlTenantAdminStore, AppConfig})
     worker_source = replace(read(joinpath(project_root(), "src", "jobs", "worker.jl"), String), "\r\n" => "\n")
-    @test occursin("run_due_daily_backtest!(service, service.simulation_store, service.import_config, TenantContext[])\n            dispatch_outbox_once!(service.simulation_store, service.import_config)", worker_source)
+    @test occursin("run_due_daily_backtest!(service, service.simulation_store, service.import_config, TenantContext[])", worker_source)
+    @test occursin("dispatch_outbox_once!(service.simulation_store, service.import_config; request_id = \"job:simulation-worker\")", worker_source)
+    @test findfirst("run_due_daily_backtest!(service, service.simulation_store, service.import_config, TenantContext[])", worker_source) < findfirst("dispatch_outbox_once!(service.simulation_store, service.import_config; request_id = \"job:simulation-worker\")", worker_source)
 end
 
 @testset "Batch 036 outbox dispatch benchmark proves queued events drain under 60 seconds" begin

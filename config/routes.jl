@@ -41,6 +41,7 @@ function route_definitions()::Vector{RouteDefinition}
         RouteDefinition(:GET, "/recommendations/:id", "recommendation_detail_page"),
         RouteDefinition(:GET, "/notifications", "notifications_page"),
         RouteDefinition(:POST, "/notifications/:id/read", "notifications_read_form"),
+        RouteDefinition(:GET, "/integrations", "integrations_page"),
         RouteDefinition(:GET, "/api/recommendations", "recommendations_list"),
         RouteDefinition(:GET, "/api/recommendations/:id", "recommendations_get"),
         RouteDefinition(:POST, "/api/recommendations/:id/approve", "recommendations_approve"),
@@ -212,6 +213,9 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
         end
         route("/notifications/:id/read"; method = POST) do
             handle_mark_notification_read_form(services)
+        end
+        route("/integrations"; method = GET) do
+            handle_integrations_page(services)
         end
         route("/api/tenants/register"; method = POST) do
             handle_register_tenant(services)
