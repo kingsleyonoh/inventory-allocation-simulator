@@ -14,6 +14,7 @@
 | `db-tenant-scoped-queries.md` | Tenant context, required tenant predicates, join-first SQL, and cross-tenant query-test contract. |
 | `ecosystem-outbox-adapters.md` | Optional Notification Hub and Workflow Engine event envelope, payload-token, retry, and dead-letter contract. |
 | `observability-endpoints-events.md` | Prometheus metrics, readiness health, local error persistence, local analytics, optional PostHog config, and alert rule contract. |
+| `performance-benchmark-fixtures.md` | PRD §10b p95/LCP target constants and benchmark-scale fixture builders for simulations, recommendations, CSV imports, and operations console pages. |
 | `request-cached-helpers.md` | Request-scoped cache primitive for expensive per-tenant lookups and summary computations. |
 | `runtime-lifecycle.md` | Coordinated shutdown contract for Genie HTTP, background workers, and service resources. |
 | `service-dependency-injection.md` | `AppServices` container wiring for DB, Redis, DuckDB, jobs, and observability dependencies. |
