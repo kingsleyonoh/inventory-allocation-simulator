@@ -109,5 +109,8 @@ function register_simulation_review_ui_routes!(services::AppServices)::Nothing
     route("/integrations"; method = GET) do
         handle_integrations_page(services)
     end
+    route("/settings/integrations"; method = GET) do
+        handle_integrations_page(services)
+    end
     return nothing
 end

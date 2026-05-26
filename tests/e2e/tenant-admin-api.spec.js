@@ -44,6 +44,8 @@ test.describe('tenant admin API routes over real HTTP', () => {
       ['get', '/api/notifications'],
       ['patch', '/api/notifications/00000000-0000-4000-8000-000000000000/read'],
       ['get', '/api/recommendations/00000000-0000-4000-8000-000000000000/export.csv'],
+      ['get', '/api/integrations/status'],
+      ['post', '/api/integrations/test'],
     ];
     for (const [method, path] of probes) {
       const response = await request[method](path, { data: {} });

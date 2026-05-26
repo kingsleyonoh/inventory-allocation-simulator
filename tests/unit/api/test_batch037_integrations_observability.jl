@@ -123,6 +123,22 @@ end
 
     routes = route_definitions()
     @test any(route -> route.path == "/integrations" && route.method == :GET, routes)
+    @test any(route -> route.path == "/settings/integrations" && route.method == :GET, routes)
+end
+
+@testset "Batch 037 integration API status and test routes require admin configuration authorization" begin
+    routes = route_definitions()
+    @test any(route -> route.path == "/api/integrations/status" && route.method == :GET, routes)
+    @test any(route -> route.path == "/api/integrations/test" && route.method == :POST, routes)
+
+    controller_source = read(joinpath(InventoryAllocationSimulator.project_root(), "src", "web", "controllers", "integration_controller.jl"), String)
+    @test occursin("handle_integration_status", controller_source)
+    @test occursin("handle_test_integration", controller_source)
+    @test occursin("_enforce_route_rate_limit!(services, \"GET\", \"/api/integrations/status\")", controller_source)
+    @test occursin("_enforce_route_rate_limit!(services, \"POST\", \"/api/integrations/test\")", controller_source)
+    @test count(occursin.(Ref("authorize!(ctx, \"configure\", \"integration\")"), split(controller_source, '\n'))) >= 2
+    @test InventoryAllocationSimulator._integration_test_payload(batch037_config(), "notification_hub").status == "disabled"
+    @test_throws ApiError InventoryAllocationSimulator._integration_test_payload(batch037_config(), "unknown_adapter")
 end
 
 @testset "Batch 037 integration status probe emits adapter-failure notifications" begin

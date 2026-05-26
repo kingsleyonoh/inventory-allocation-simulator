@@ -3,7 +3,7 @@
 using YAML
 
 const ROOT = normpath(joinpath(@__DIR__, ".."))
-const ROUTES_PATH = joinpath(ROOT, "config", "routes.jl")
+const ROUTES_PATH = joinpath(ROOT, "config", "routes_definitions.jl")
 const OPENAPI_PATH = joinpath(ROOT, "openapi.yaml")
 
 const METHOD_RESPONSE = Dict(

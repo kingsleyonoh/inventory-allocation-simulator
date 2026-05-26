@@ -108,6 +108,12 @@ paths:
       responses:
         "200":
           description: "OK"
+  /api/integrations/status:
+    get:
+      summary: "Integrations status"
+      responses:
+        "200":
+          description: "OK"
   /api/recommendations/{id}/export:
     post:
       summary: "Recommendations export"
@@ -195,12 +201,6 @@ paths:
       responses:
         "200":
           description: "OK"
-  /api/recommendations:
-    get:
-      summary: "Recommendations list"
-      responses:
-        "200":
-          description: "OK"
   /api/warehouses:
     post:
       summary: "Warehouses create"
@@ -218,6 +218,12 @@ paths:
       responses:
         "202":
           description: "Accepted"
+  /api/recommendations:
+    get:
+      summary: "Recommendations list"
+      responses:
+        "200":
+          description: "OK"
   /api/settings/api-key/rotate:
     post:
       summary: "Api key rotate"
@@ -236,6 +242,12 @@ paths:
       responses:
         "200":
           description: "OK"
+  /api/integrations/test:
+    post:
+      summary: "Integrations test"
+      responses:
+        "202":
+          description: "Accepted"
   /health/ready:
     get:
       summary: "Health ready"

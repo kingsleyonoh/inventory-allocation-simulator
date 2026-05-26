@@ -3,6 +3,7 @@ function register_api_routes!(services::AppServices)::Nothing
     register_catalog_api_routes!(services)
     register_simulation_import_api_routes!(services)
     register_recommendation_api_routes!(services)
+    register_integration_api_routes!(services)
     return nothing
 end
 
@@ -117,6 +118,16 @@ function register_simulation_import_api_routes!(services::AppServices)::Nothing
     end
     route("/api/imports/:id"; method = GET) do
         handle_get_import_result(services)
+    end
+    return nothing
+end
+
+function register_integration_api_routes!(services::AppServices)::Nothing
+    route("/api/integrations/status"; method = GET) do
+        handle_integration_status(services)
+    end
+    route("/api/integrations/test"; method = POST) do
+        handle_test_integration(services)
     end
     return nothing
 end

@@ -47,6 +47,7 @@ include("web/controllers/planning_catalog_controller.jl")
 include("web/controllers/simulation_controller.jl")
 include("web/controllers/recommendation_controller.jl")
 include("web/controllers/notification_controller.jl")
+include("web/controllers/integration_controller.jl")
 include("web/controllers/ui_controller.jl")
 include("web/controllers/ui_batch027_controller.jl")
 include("imports/demo_seed.jl")
@@ -91,6 +92,7 @@ export metrics_authorized, prometheus_metrics_text, ready_health_response
 export OperationalMetrics, OBSERVABILITY_KEY_EVENTS, collect_operational_metrics
 export PerformanceBenchmarkFixture, performance_targets, large_simulation_benchmark_fixture, recommendation_list_benchmark_fixture, csv_import_benchmark_fixture, csv_import_benchmark_row_count, dashboard_lcp_benchmark_pages
 export normalized_observability_event_type, build_local_error_event, build_local_analytics_event, record_local_error_event!, record_local_analytics_event!
+export handle_integration_status, handle_test_integration
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli
 export start!, stop!

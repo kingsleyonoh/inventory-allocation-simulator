@@ -45,6 +45,7 @@ _ui_phase3_route_definitions() = [
     RouteDefinition(:GET, "/notifications", "notifications_page"),
     RouteDefinition(:POST, "/notifications/:id/read", "notifications_read_form"),
     RouteDefinition(:GET, "/integrations", "integrations_page"),
+    RouteDefinition(:GET, "/settings/integrations", "settings_integrations_page"),
 ]
 
 _tenant_api_route_definitions() = [
@@ -87,6 +88,11 @@ _simulation_import_api_route_definitions() = [
     RouteDefinition(:GET, "/api/imports/:id", "imports_result"),
 ]
 
+_integration_api_route_definitions() = [
+    RouteDefinition(:GET, "/api/integrations/status", "integrations_status"),
+    RouteDefinition(:POST, "/api/integrations/test", "integrations_test"),
+]
+
 _recommendation_api_route_definitions() = [
     RouteDefinition(:GET, "/api/recommendations", "recommendations_list"),
     RouteDefinition(:GET, "/api/recommendations/:id", "recommendations_get"),
@@ -104,6 +110,7 @@ function route_definitions()::Vector{RouteDefinition}
         _health_route_definitions(),
         _ui_route_definitions(),
         _ui_phase3_route_definitions(),
+        _integration_api_route_definitions(),
         _recommendation_api_route_definitions(),
         _tenant_api_route_definitions(),
         _catalog_api_route_definitions(),
