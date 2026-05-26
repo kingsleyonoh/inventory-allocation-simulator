@@ -75,6 +75,7 @@ end
     @test occursin("julia --project scripts/migrate.jl up", compose)
 
     for token in [
+        "workflow_dispatch:",
         "julia --project -e 'using Pkg; Pkg.test()'",
         "Aqua.test_all(InventoryAllocationSimulator; stale_deps=false)",
         "julia --project scripts/migrate.jl up",
