@@ -1,73 +1,258 @@
-openapi: 3.1.0
-info:
-  title: Inventory Allocation Simulator API
-  version: 0.1.0
+openapi: "3.1.0"
 paths:
-  /api/tenants/register:
-    post:
-      summary: Register tenant when self-registration is enabled
-      responses: { '200': { description: OK } }
-  /tenants/me:
-    get:
-      summary: Current tenant profile
-      responses: { '200': { description: OK } }
-  /api/warehouses:
-    get:
-      summary: List warehouses
-      responses: { '200': { description: OK } }
-    post:
-      summary: Create warehouse
-      responses: { '201': { description: Created } }
   /api/skus:
-    get:
-      summary: List SKUs
-      responses: { '200': { description: OK } }
     post:
-      summary: Create SKU
-      responses: { '201': { description: Created } }
-  /api/inventory:
+      summary: "Skus create"
+      responses:
+        "201":
+          description: "Created"
     get:
-      summary: List inventory positions
-      responses: { '200': { description: OK } }
+      summary: "Skus list"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations/{id}/reject:
+    post:
+      summary: "Recommendations reject"
+      responses:
+        "202":
+          description: "Accepted"
+  /api/skus/{id}:
+    delete:
+      summary: "Skus delete"
+      responses:
+        "200":
+          description: "OK"
+    patch:
+      summary: "Skus update"
+      responses:
+        "200":
+          description: "OK"
+    get:
+      summary: "Skus get"
+      responses:
+        "200":
+          description: "OK"
   /api/inventory/{id}:
     put:
-      summary: Update inventory position
-      responses: { '200': { description: OK } }
+      summary: "Inventory update"
+      responses:
+        "200":
+          description: "OK"
+  /tenants/me:
+    get:
+      summary: "Tenant me"
+      responses:
+        "200":
+          description: "OK"
+  /api/users/{id}:
+    patch:
+      summary: "Users update"
+      responses:
+        "200":
+          description: "OK"
+  /api/notifications:
+    get:
+      summary: "Notifications list"
+      responses:
+        "200":
+          description: "OK"
+  /api/warehouses/{id}:
+    delete:
+      summary: "Warehouses delete"
+      responses:
+        "200":
+          description: "OK"
+    patch:
+      summary: "Warehouses update"
+      responses:
+        "200":
+          description: "OK"
+    get:
+      summary: "Warehouses get"
+      responses:
+        "200":
+          description: "OK"
+  /api/tenants/register:
+    post:
+      summary: "Tenant register"
+      responses:
+        "200":
+          description: "OK"
+  /api/simulations/{id}/cancel:
+    post:
+      summary: "Simulations cancel"
+      responses:
+        "202":
+          description: "Accepted"
   /api/demand-history:
     get:
-      summary: List demand history
-      responses: { '200': { description: OK } }
+      summary: "Demand history list"
+      responses:
+        "200":
+          description: "OK"
+  /api/policies:
+    post:
+      summary: "Policies create"
+      responses:
+        "201":
+          description: "Created"
+    get:
+      summary: "Policies list"
+      responses:
+        "200":
+          description: "OK"
+  /api/inventory:
+    get:
+      summary: "Inventory list"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations/{id}/export:
+    post:
+      summary: "Recommendations export"
+      responses:
+        "202":
+          description: "Accepted"
+  /api/notifications/{id}/read:
+    patch:
+      summary: "Notifications read"
+      responses:
+        "200":
+          description: "OK"
   /api/lanes:
-    get:
-      summary: List transfer lanes
-      responses: { '200': { description: OK } }
     post:
-      summary: Create transfer lane
-      responses: { '201': { description: Created } }
-  /api/imports:
-    post:
-      summary: Upload planning CSV import
-      responses: { '202': { description: Queued } }
-  /api/simulations:
+      summary: "Lanes create"
+      responses:
+        "201":
+          description: "Created"
     get:
-      summary: List simulation runs
-      responses: { '200': { description: OK } }
-    post:
-      summary: Start simulation run
-      responses: { '202': { description: Queued } }
-  /api/recommendations/export.csv:
+      summary: "Lanes list"
+      responses:
+        "200":
+          description: "OK"
+  /api/settings/tenant:
+    patch:
+      summary: "Tenant settings update"
+      responses:
+        "200":
+          description: "OK"
     get:
-      summary: Export recommendations as CSV
-      responses: { '200': { description: CSV } }
+      summary: "Tenant settings read"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations/{id}/approve:
+    post:
+      summary: "Recommendations approve"
+      responses:
+        "202":
+          description: "Accepted"
   /health:
     get:
-      summary: Process health
-      responses: { '200': { description: OK } }
-  /health/ready:
+      summary: "Health"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations/{id}/expire:
+    post:
+      summary: "Recommendations expire"
+      responses:
+        "202":
+          description: "Accepted"
+  /health/db:
     get:
-      summary: Readiness without optional adapter dependency
-      responses: { '200': { description: OK } }
+      summary: "Health db"
+      responses:
+        "200":
+          description: "OK"
   /metrics:
     get:
-      summary: Prometheus metrics
-      responses: { '200': { description: OK } }
+      summary: "Metrics"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations/{id}:
+    get:
+      summary: "Recommendations get"
+      responses:
+        "200":
+          description: "OK"
+  /api/users:
+    post:
+      summary: "Users create"
+      responses:
+        "201":
+          description: "Created"
+    get:
+      summary: "Users list"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations/{id}/export.csv:
+    get:
+      summary: "Recommendations export csv"
+      responses:
+        "200":
+          description: "OK"
+  /api/recommendations:
+    get:
+      summary: "Recommendations list"
+      responses:
+        "200":
+          description: "OK"
+  /api/warehouses:
+    post:
+      summary: "Warehouses create"
+      responses:
+        "201":
+          description: "Created"
+    get:
+      summary: "Warehouses list"
+      responses:
+        "200":
+          description: "OK"
+  /api/imports:
+    post:
+      summary: "Imports create"
+      responses:
+        "202":
+          description: "Accepted"
+  /api/settings/api-key/rotate:
+    post:
+      summary: "Api key rotate"
+      responses:
+        "200":
+          description: "OK"
+  /api/simulations/{id}:
+    get:
+      summary: "Simulations get"
+      responses:
+        "200":
+          description: "OK"
+  /api/imports/{id}:
+    get:
+      summary: "Imports result"
+      responses:
+        "200":
+          description: "OK"
+  /health/ready:
+    get:
+      summary: "Health ready"
+      responses:
+        "200":
+          description: "OK"
+  /api/simulations:
+    post:
+      summary: "Simulations create"
+      responses:
+        "202":
+          description: "Accepted"
+    get:
+      summary: "Simulations list"
+      responses:
+        "200":
+          description: "OK"
+info:
+  title: "Inventory Allocation Simulator API"
+  version: "0.1.0"

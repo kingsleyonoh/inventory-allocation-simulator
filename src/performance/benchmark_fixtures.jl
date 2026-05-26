@@ -5,6 +5,8 @@ const PERF_SIMULATION_P95_MS = 10 * 60 * 1000
 const PERF_RECOMMENDATION_LIST_P95_MS = 250
 const PERF_CSV_IMPORT_P95_MS = 3 * 60 * 1000
 const PERF_DASHBOARD_LCP_MS = 2500
+const PERF_SOLVER_TIMEOUT_GRACE_SECONDS = 10
+const PERF_OUTBOX_DISPATCH_P95_MS = 60 * 1000
 
 struct PerformanceBenchmarkFixture
     tenant_id::UUID
@@ -22,6 +24,8 @@ function performance_targets()::NamedTuple
         recommendation_list_p95_ms = PERF_RECOMMENDATION_LIST_P95_MS,
         csv_import_p95_ms = PERF_CSV_IMPORT_P95_MS,
         dashboard_lcp_ms = PERF_DASHBOARD_LCP_MS,
+        solver_timeout_grace_seconds = PERF_SOLVER_TIMEOUT_GRACE_SECONDS,
+        outbox_dispatch_p95_ms = PERF_OUTBOX_DISPATCH_P95_MS,
     )
 end
 

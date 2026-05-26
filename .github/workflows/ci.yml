@@ -62,5 +62,7 @@ jobs:
           else
             bash scripts/e2e_health_check.sh
           fi
-      - name: Secret scan
+      - name: Secret scan tracked files
         run: bash scripts/scan-secrets.sh --mode tracked
+      - name: Secret scan staged files
+        run: bash scripts/scan-secrets.sh --mode staged
