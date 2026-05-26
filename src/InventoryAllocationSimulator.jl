@@ -64,7 +64,7 @@ export RateLimitPolicy, RateLimitDecision, MemoryRateLimiter, check_rate_limit!,
 export first_run_setup!, generate_api_key, hash_api_key, AbstractSetupStore, count_tenants, insert_tenant!, insert_admin_user!
 export AbstractAuthStore, AuthError, TenantAuthRecord, SessionAuthRecord, AuthRequest
 export signed_session_cookie, verify_session_cookie, resolve_tenant_context, lookup_tenant_by_api_key_hash, lookup_session_record
-export AuthzError, AuthzPolicy, AuthorizationRegistry, load_authz_registry, default_authz_registry, policy_key, authorize!
+export AuthzError, AuthzPolicy, AuthorizationRegistry, load_authz_registry, default_authz_registry, policy_key, authorize!, authorize_metrics_readiness!
 export AbstractTenantAdminStore, MemoryTenantAdminStore, SqlTenantAdminStore
 export register_tenant!, rotate_api_key!, get_tenant_profile, update_tenant_settings!, list_users, create_user!, update_user!
 export list_warehouses, get_warehouse, create_warehouse!, update_warehouse!, deactivate_warehouse!

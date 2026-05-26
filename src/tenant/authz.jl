@@ -76,6 +76,16 @@ end
 policy_key(role::AbstractString, resource::AbstractString, action::AbstractString)::String =
     string(role, ":", resource, ":", action)
 
+const METRICS_READINESS_RESOURCE = "metrics_readiness"
+const METRICS_READINESS_READ_ACTION = "read"
+
+function authorize_metrics_readiness!(
+    ctx::TenantContext;
+    registry::AuthorizationRegistry = default_authz_registry(),
+)::TenantContext
+    return authorize!(ctx, METRICS_READINESS_READ_ACTION, METRICS_READINESS_RESOURCE; registry = registry)
+end
+
 function authorize!(
     ctx::TenantContext,
     action::AbstractString,

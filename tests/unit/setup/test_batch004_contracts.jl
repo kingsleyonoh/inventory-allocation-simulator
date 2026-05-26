@@ -128,6 +128,25 @@ end
     @test isfile(integration_test_path)
 end
 
+@testset "Batch 043 phase 4 matrix close-out artifact is first-class" begin
+    audit_result = batch004_json(".yolo", "batch-results", "batch-043-audit.json")
+    integration_test_path = batch004_path("tests", "integration", "authz", "test_phase4_matrix_authorization.jl")
+
+    @test audit_result.auditType == "matrix-coverage"
+    @test audit_result.matrixRef == "Roles × Resource Actions"
+    @test audit_result.cellsChecked == 4
+    @test audit_result.cellsPassed == 4
+    @test audit_result.cellsFailed == 0
+    @test haskey(audit_result, :cells)
+    @test Set(String(cell.policyKey) for cell in audit_result.cells) == Set([
+        "admin:integration:configure",
+        "admin:metrics_readiness:read",
+        "planner:metrics_readiness:read",
+        "viewer:metrics_readiness:read",
+    ])
+    @test isfile(integration_test_path)
+end
+
 @testset "Authz matrix fixture covers every PRD role/resource cell" begin
     matrix = batch004_json("tests", "fixtures", "authz_matrix.json")
     @test matrix.schemaVersion == 1

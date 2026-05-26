@@ -118,6 +118,7 @@ end
 function handle_dashboard(services::AppServices)
     try
         ctx, store = _protected_ui_context_and_store(services)
+        authorize_metrics_readiness!(ctx)
         html = render_dashboard_page(store, ctx)
         return _html_response(html)
     catch err
