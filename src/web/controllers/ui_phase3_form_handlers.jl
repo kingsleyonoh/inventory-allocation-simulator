@@ -4,7 +4,7 @@ function handle_lanes_page(services::AppServices)
         return _html_response(render_transfer_lanes_page(store, ctx))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Flanes")
-        return _html_response("<h1>Transfer lanes unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Transfer lanes unavailable", err)
     end
 end
 
@@ -38,7 +38,7 @@ function handle_policies_page(services::AppServices)
         return _html_response(render_allocation_policies_page(store, ctx))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fpolicies")
-        return _html_response("<h1>Policies unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Policies unavailable", err)
     end
 end
 
@@ -72,7 +72,7 @@ function handle_settings_page(services::AppServices)
         return _html_response(render_tenant_settings_page(store, services.config, ctx))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fsettings")
-        return _html_response("<h1>Settings unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Settings unavailable", err)
     end
 end
 
@@ -130,7 +130,7 @@ function handle_simulations_page(services::AppServices)
         return _html_response(render_simulations_page(store, ctx))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fsimulations")
-        return _html_response("<h1>Simulations unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Simulations unavailable", err)
     end
 end
 
@@ -152,7 +152,7 @@ function handle_simulation_detail_page(services::AppServices)
         return _html_response(render_simulation_detail_page(store, ctx, Router.params(:id)))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fsimulations")
-        return _html_response("<h1>Simulation detail unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = err isa ApiError ? err.status : 500)
+        return _ui_unavailable_response("Simulation detail unavailable", err)
     end
 end
 
@@ -195,7 +195,7 @@ function handle_notifications_page(services::AppServices)
         return _html_response(render_notifications_page(store, ctx))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fnotifications")
-        return _html_response("<h1>Notifications unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = err isa ApiError ? err.status : 500)
+        return _ui_unavailable_response("Notifications unavailable", err)
     end
 end
 
@@ -217,6 +217,6 @@ function handle_recommendation_detail_page(services::AppServices)
         return _html_response(render_recommendation_detail_page(store, ctx, Router.params(:id)))
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fsimulations")
-        return _html_response("<h1>Recommendation unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = err isa ApiError ? err.status : 500)
+        return _ui_unavailable_response("Recommendation unavailable", err)
     end
 end

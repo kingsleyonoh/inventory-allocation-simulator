@@ -17,6 +17,22 @@ security_readroot(path...) = read(joinpath(SECURITY_ROOT, path...), String)
     @test occursin(raw"DATABASE_URL=postgres://inventory:${POSTGRES_PASSWORD}@localhost:5432/inventory_allocation", prd_source)
 end
 
+@testset "Phase 3 UI security contracts" begin
+    ui_session_handlers = security_readroot("src", "web", "controllers", "ui_session_catalog_handlers.jl")
+    ui_phase3_handlers = security_readroot("src", "web", "controllers", "ui_phase3_form_handlers.jl")
+    ui_handlers = ui_session_handlers * "\n" * ui_phase3_handlers
+
+    @test !occursin("sprint(showerror, err)", ui_handlers)
+    @test occursin("_ui_unavailable_response", ui_handlers)
+    for title in [
+        "Dashboard unavailable", "Imports unavailable", "Warehouses unavailable", "SKUs unavailable",
+        "Transfer lanes unavailable", "Policies unavailable", "Settings unavailable", "Simulations unavailable",
+        "Simulation detail unavailable", "Notifications unavailable", "Recommendation unavailable",
+    ]
+        @test occursin("_ui_unavailable_response(\"$title\"", ui_handlers)
+    end
+end
+
 @testset "Production deployment security contracts" begin
     prod_compose = security_readroot("docker-compose.prod.yml")
 

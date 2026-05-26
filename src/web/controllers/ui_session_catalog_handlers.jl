@@ -34,6 +34,12 @@ function _ui_action_failure_response(title::AbstractString, err)
     return _html_response("<h1>$(_h(title))</h1><div class=\"ias-alert\" role=\"alert\">$(_h(message))</div>"; status = status)
 end
 
+function _ui_unavailable_response(title::AbstractString, err)
+    message = err isa ApiError ? err.message : "The page could not be loaded. Please retry or contact an administrator."
+    status = err isa ApiError ? err.status : 500
+    return _html_response("<h1>$(_h(title))</h1><p>$(_h(message))</p>"; status = status)
+end
+
 function _find_active_user_by_email(store::MemoryTenantAdminStore, tenant_id::UUID, email::AbstractString)
     target = lowercase(strip(String(email)))
     for user in values(store.users)
@@ -116,7 +122,7 @@ function handle_dashboard(services::AppServices)
         return _html_response(html)
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fdashboard")
-        return _html_response("<h1>Dashboard unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Dashboard unavailable", err)
     end
 end
 
@@ -127,7 +133,7 @@ function handle_imports_page(services::AppServices)
         return _html_response(html)
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fimports")
-        return _html_response("<h1>Imports unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Imports unavailable", err)
     end
 end
 
@@ -138,7 +144,7 @@ function handle_warehouses_page(services::AppServices)
         return _html_response(html)
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fwarehouses")
-        return _html_response("<h1>Warehouses unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("Warehouses unavailable", err)
     end
 end
 
@@ -173,7 +179,7 @@ function handle_skus_page(services::AppServices)
         return _html_response(html)
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fskus")
-        return _html_response("<h1>SKUs unavailable</h1><p>$(_h(sprint(showerror, err)))</p>"; status = 500)
+        return _ui_unavailable_response("SKUs unavailable", err)
     end
 end
 
