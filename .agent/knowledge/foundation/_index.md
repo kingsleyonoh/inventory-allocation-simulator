@@ -13,6 +13,7 @@
 | `db-migration-runner.md` | Ordered SQL migration discovery/execution contract and DB health readiness integration. |
 | `db-tenant-scoped-queries.md` | Tenant context, required tenant predicates, join-first SQL, and cross-tenant query-test contract. |
 | `ecosystem-outbox-adapters.md` | Optional Notification Hub and Workflow Engine event envelope, payload-token, retry, and dead-letter contract. |
+| `observability-endpoints-events.md` | Prometheus metrics, readiness health, local error persistence, local analytics, optional PostHog config, and alert rule contract. |
 | `request-cached-helpers.md` | Request-scoped cache primitive for expensive per-tenant lookups and summary computations. |
 | `runtime-lifecycle.md` | Coordinated shutdown contract for Genie HTTP, background workers, and service resources. |
 | `service-dependency-injection.md` | `AppServices` container wiring for DB, Redis, DuckDB, jobs, and observability dependencies. |

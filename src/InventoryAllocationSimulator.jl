@@ -40,6 +40,7 @@ include("jobs/worker.jl")
 include("recommendations/expiry_jobs.jl")
 include("observability/logging.jl")
 include("services.jl")
+include("observability/metrics_errors_analytics.jl")
 include("web/controllers/tenant_admin_controller.jl")
 include("web/controllers/planning_catalog_controller.jl")
 include("web/controllers/simulation_controller.jl")
@@ -85,6 +86,9 @@ export render_login_page, render_protected_route_notice, render_dashboard_page, 
 export render_transfer_lanes_page, render_allocation_policies_page, render_tenant_settings_page, render_simulations_page, render_simulation_detail_page, render_recommendation_detail_page, render_notifications_page, render_integration_settings_page
 export validate_demo_fixtures, run_setup_cli, run_seed_demo_cli
 export request_id_from_headers, structured_log_json
+export metrics_authorized, prometheus_metrics_text, ready_health_response
+export OperationalMetrics, OBSERVABILITY_KEY_EVENTS, collect_operational_metrics
+export normalized_observability_event_type, build_local_error_event, build_local_analytics_event, record_local_error_event!, record_local_analytics_event!
 export Migration, MigrationRunResult, MigrationHealth, MemoryMigrationStore, SqlMigrationStore
 export discover_migrations, run_migrations!, migration_health, run_migrate_cli
 export start!, stop!

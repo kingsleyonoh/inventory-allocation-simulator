@@ -59,6 +59,9 @@ end
 struct ObservabilityConfig
     sentry_dsn::String
     metrics_token::String
+    posthog_enabled::Bool
+    posthog_url::String
+    posthog_api_key::String
 end
 
 struct AppConfig
@@ -187,6 +190,9 @@ function _load_observability_config(env)::ObservabilityConfig
     return ObservabilityConfig(
         _env_get(env, "SENTRY_DSN", ""),
         _required(env, "METRICS_TOKEN"),
+        _parse_bool(_env_get(env, "POSTHOG_ENABLED", "false"), "POSTHOG_ENABLED"),
+        _env_get(env, "POSTHOG_URL", ""),
+        _env_get(env, "POSTHOG_API_KEY", ""),
     )
 end
 

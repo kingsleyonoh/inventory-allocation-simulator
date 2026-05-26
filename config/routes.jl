@@ -1,5 +1,6 @@
 using Genie.Router
 using Genie.Renderer: respond
+using HTTP
 using JSON3
 
 struct RouteDefinition
@@ -12,6 +13,8 @@ function route_definitions()::Vector{RouteDefinition}
     return [
         RouteDefinition(:GET, "/health", "health"),
         RouteDefinition(:GET, "/health/db", "health_db"),
+        RouteDefinition(:GET, "/health/ready", "health_ready"),
+        RouteDefinition(:GET, "/metrics", "metrics"),
         RouteDefinition(:GET, "/login", "login_page"),
         RouteDefinition(:POST, "/login", "login_create"),
         RouteDefinition(:POST, "/logout", "logout"),
@@ -124,6 +127,22 @@ function register_routes!(services::Union{Nothing,AppServices} = nothing)
             db_health_response(services)
         end
         respond(JSON3.write(response), :json, response.status == "ok" ? 200 : 503)
+    end
+
+    route("/health/ready") do
+        response = if services === nothing
+            (status = "not_ready", service = "inventory-allocation-simulator", database = (status = "unavailable", service = "postgresql", error = "services_not_configured"))
+        else
+            ready_health_response(services)
+        end
+        respond(JSON3.write(response), :json, response.status == "ready" ? 200 : 503)
+    end
+
+    route("/metrics") do
+        if services === nothing || !metrics_authorized(services, _request_headers_dict())
+            return HTTP.Response(401, ["Content-Type" => "text/plain"], "metrics token required\n")
+        end
+        return HTTP.Response(200, ["Content-Type" => "text/plain; version=0.0.4"], prometheus_metrics_text(services))
     end
 
     if services !== nothing

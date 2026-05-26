@@ -1,0 +1,43 @@
+groups:
+  - name: inventory-allocation-simulator
+    rules:
+      - alert: InventorySimulationFailures
+        expr: increase(inventory_simulation_failures_total[30m]) / clamp_min(increase(inventory_simulation_runs_total[30m]), 1) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Simulation failure rate above 10 percent
+          description: More than 10 percent of simulation runs failed in the last 30 minutes.
+      - alert: InventoryImportFailures
+        expr: increase(inventory_import_failures_total[30m]) / clamp_min(increase(inventory_import_jobs_total[30m]), 1) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Import failure rate above 20 percent
+          description: More than 20 percent of CSV/manual import jobs failed in the last 30 minutes.
+      - alert: InventoryOutboxDeadLetters
+        expr: increase(inventory_outbox_dead_letters_total[30m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Ecosystem outbox dead-letter threshold exceeded
+          description: More than five optional adapter events moved to dead letter in the last 30 minutes.
+      - alert: InventoryDatabaseOutage
+        expr: inventory_database_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Database health check is unavailable
+          description: PostgreSQL health/readiness is failing for the application.
+      - alert: InventorySolverP95High
+        expr: histogram_quantile(0.95, sum(rate(inventory_solver_duration_seconds_bucket[30m])) by (le)) > 120 and increase(inventory_solver_duration_seconds_count[30m]) >= 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Solver p95 latency above target
+          description: Allocation solver p95 exceeds the configured timeout target across at least three observed runs.
