@@ -107,6 +107,21 @@ function _outbox_payload(event)::Dict{String,Any}
     )
 end
 
+function create_local_notifications_with_optional_hub_mirror!(
+    store::AbstractTenantAdminStore,
+    config::AppConfig,
+    event;
+    mirror!::Function = mirror_notification_hub_outbox!,
+)::NamedTuple
+    local_result = create_local_notifications!(store, event)
+    try
+        hub = mirror!(store, config, event)
+        return (local_delivery = local_result, hub = hub, hub_failed = false, hub_error = nothing)
+    catch err
+        return (local_delivery = local_result, hub = (mirrored = false, idempotent = false, outbox_id = nothing), hub_failed = true, hub_error = sprint(showerror, err))
+    end
+end
+
 function mirror_notification_hub_outbox!(store::MemoryTenantAdminStore, config::AppConfig, event)::NamedTuple
     config.integrations.notification_hub_enabled || return (mirrored = false, idempotent = false, outbox_id = nothing)
     event.event_type in NOTIFICATION_HUB_MIRROR_EVENTS || return (mirrored = false, idempotent = false, outbox_id = nothing)
