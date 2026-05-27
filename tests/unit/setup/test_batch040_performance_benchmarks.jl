@@ -54,6 +54,20 @@ end
     @test occursin("create_import_job!", script)
     @test occursin("process_import_job!", script)
     @test occursin("HTTP.request", script)
+    @test occursin("simulation_benchmarks.jl", script)
+    @test occursin("benchmark_large_simulation", script)
+
+    simulation_benchmark = batch040_read("scripts", "benchmarks", "simulation_benchmarks.jl")
+    @test occursin("large_simulation_benchmark_fixture", simulation_benchmark)
+    @test occursin("create_simulation_run!", simulation_benchmark)
+    @test occursin("simulation_worker!", simulation_benchmark)
+    @test occursin("scenario_count = 100", simulation_benchmark)
+    @test occursin("performance_targets().simulation_p95_ms", simulation_benchmark)
+    @test occursin("passed_target", simulation_benchmark)
+
+    manifest = batch040_read("scripts", "benchmarks", "benchmark_manifest.jl")
+    @test occursin("large_simulation = benchmark_large_simulation()", manifest)
+    @test occursin("large_simulation = large_simulation", manifest)
 
     e2e = batch040_read("tests", "e2e", "postgres-redis-stack.spec.js")
     @test occursin("/health/db", e2e)

@@ -2,6 +2,7 @@ function benchmark_manifest()::NamedTuple
     simulation = large_simulation_benchmark_fixture()
     recommendations = recommendation_list_benchmark_fixture()
     csv = csv_import_benchmark_fixture()
+    large_simulation = benchmark_large_simulation()
     rec_benchmark = benchmark_recommendation_list_api()
     csv_benchmark = benchmark_csv_import()
     solver_timeout = benchmark_solver_timeout()
@@ -13,6 +14,7 @@ function benchmark_manifest()::NamedTuple
         targets = performance_targets(),
         fixtures = _benchmark_fixture_manifest(simulation, recommendations, csv, solver_timeout, outbox_dispatch),
         benchmarks = (
+            large_simulation = large_simulation,
             recommendation_list_api = rec_benchmark,
             csv_import = csv_benchmark,
             solver_timeout = solver_timeout,
