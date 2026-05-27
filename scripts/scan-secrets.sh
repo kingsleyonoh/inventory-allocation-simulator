@@ -100,7 +100,7 @@ declare -a SECRET_PATTERNS=(
 )
 
 # Allow-list: any line matching one of these is treated as a placeholder.
-ALLOW_RE='\$\{[A-Z_][A-Z0-9_]*\}|\$\{\{[^}]+\}\}|\{\{[A-Z_][A-Z0-9_]*\}\}|<REDACTED>|[Yy][Oo][Uu][Rr][-_]?([Aa][Pp][Ii][-_]?)?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll])[-_]?[Hh][Ee][Rr][Ee]|[Ee][Xx][Aa][Mm][Pp][Ll][Ee][_-]?([Aa][Pp][Ii][_-]?)?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|[Xx][Xx][Xx][_-]?([Tt][Ee][Ss][Tt]|[Ll][Ii][Vv][Ee]|[Pp][Rr][Oo][Dd]|[Dd][Ee][Vv])?[_-]?[Xx][Xx][Xx]|os\.environ|process\.env|getenv\(|config\.get\(|<your[^>]+>|<api[^>]+>|<token[^>]+>|<secret[^>]+>|[Rr][Ee][Dd][Aa][Cc][Tt][Ee][Dd]|[Pp][Ll][Aa][Cc][Ee][Hh][Oo][Ll][Dd][Ee][Rr]|[Ff][Aa][Kk][Ee][_-]?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|[Dd][Uu][Mm][Mm][Yy][_-]?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|[Ss][Aa][Mm][Pp][Ll][Ee][_-]?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|sk-XXXX|sk_test_xxxxx|\.{3,}'
+ALLOW_RE='\$\{[A-Z_][A-Z0-9_]*\}|\$\{\{[^}]+\}\}|\{\{[A-Z_][A-Z0-9_]*\}\}|<REDACTED>|[Yy][Oo][Uu][Rr][-_]?([Aa][Pp][Ii][-_]?)?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll])[-_]?[Hh][Ee][Rr][Ee]|[Ee][Xx][Aa][Mm][Pp][Ll][Ee][_-]?([Aa][Pp][Ii][_-]?)?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|[Xx][Xx][Xx][_-]?([Tt][Ee][Ss][Tt]|[Ll][Ii][Vv][Ee]|[Pp][Rr][Oo][Dd]|[Dd][Ee][Vv])?[_-]?[Xx][Xx][Xx]|os\.environ|process\.env|getenv\(|config\.get\(|env\.[A-Z_][A-Z0-9_]*|<your[^>]+>|<api[^>]+>|<token[^>]+>|<secret[^>]+>|[Rr][Ee][Dd][Aa][Cc][Tt][Ee][Dd]|[Pp][Ll][Aa][Cc][Ee][Hh][Oo][Ll][Dd][Ee][Rr]|[Ff][Aa][Kk][Ee][_-]?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|[Dd][Uu][Mm][Mm][Yy][_-]?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|[Ss][Aa][Mm][Pp][Ll][Ee][_-]?([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt])|sk-XXXX|sk_test_xxxxx|\.{3,}'
 
 # Skip these files entirely.
 SKIP_RE='\.lock$|package-lock\.json$|pnpm-lock\.yaml$|yarn\.lock$|composer\.lock$|Cargo\.lock$|Gemfile\.lock$|poetry\.lock$|uv\.lock$|\.min\.(js|css)$|\.bundle\.(js|css)$|\.(png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|otf|eot|pdf|zip|tar|gz|tgz|bz2|7z|exe|dll|so|dylib|class|jar|pyc|pyo|whl|mp3|mp4|mov|avi)$|/node_modules/|/dist/|/build/|/\.next/|/\.venv/|/venv/|/__pycache__/|/target/|/vendor/|CHANGELOG\.md$|scan-secrets\.(ps1|sh)$|CODING_STANDARDS\.md$|yolo-honesty-checks\.md$'
@@ -124,72 +124,107 @@ collect_files() {
 }
 
 # ---------- Scan ----------
-declare -a JSON_MATCHES=()
-SCANNED=0
-
-while IFS= read -r FILE; do
-    [[ -z "$FILE" ]] && continue
-    [[ ! -f "$FILE" ]] && continue
-    [[ "$FILE" =~ $SKIP_RE ]] && continue
-    SCANNED=$((SCANNED + 1))
-
-    FILE_LINE_NO=0
-    while IFS= read -r LINE || [[ -n "$LINE" ]]; do
-        FILE_LINE_NO=$((FILE_LINE_NO + 1))
-
-        # Empty / whitespace-only line skip
-        [[ -z "${LINE// }" ]] && continue
-
-        # Allow-list check FIRST
-        if [[ "$LINE" =~ $ALLOW_RE ]]; then
-            continue
-        fi
-
-        # Try every secret pattern; first match wins (one per line is enough)
-        for IDX in "${!SECRET_PATTERNS[@]}"; do
-            PATTERN="${SECRET_PATTERNS[$IDX]}"
-            NAME="${SECRET_NAMES[$IDX]}"
-            if [[ "$LINE" =~ $PATTERN ]]; then
-                # Truncate snippet to 200 chars
-                SNIPPET="${LINE//$'\t'/ }"
-                SNIPPET="${SNIPPET#"${SNIPPET%%[![:space:]]*}"}"
-                if [[ ${#SNIPPET} -gt 200 ]]; then
-                    SNIPPET="${SNIPPET:0:200}..."
-                fi
-                # Escape for JSON: \, ", control chars
-                JSON_SNIPPET=$(printf '%s' "$SNIPPET" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g')
-                JSON_FILE=$(printf '%s' "$FILE" | sed 's/\\/\\\\/g; s/"/\\"/g')
-                JSON_MATCHES+=("{\"file\":\"$JSON_FILE\",\"line\":$FILE_LINE_NO,\"pattern\":\"$NAME\",\"snippet\":\"$JSON_SNIPPET\"}")
-                break
-            fi
-        done
-    done < "$FILE"
-done < <(collect_files)
-
-# ---------- Emit JSON ----------
-STATUS="clean"
-if [[ ${#JSON_MATCHES[@]} -gt 0 ]]; then
-    STATUS="secrets_detected"
-fi
-
-if [[ ${#JSON_MATCHES[@]} -eq 0 ]]; then
-    JSON_BODY="[]"
-else
-    JOINED=$(printf ',%s' "${JSON_MATCHES[@]}")
-    JSON_BODY="[${JOINED:1}]"
-fi
-
-cat <<EOF
-{
-  "matches": $JSON_BODY,
-  "files_scanned": $SCANNED,
-  "mode": "$MODE",
-  "status": "$STATUS"
+# Keep the shell wrapper for mode/file discovery, but do the expensive
+# line/pattern matching in one Perl process. The previous nested Bash regex
+# loop was too slow on the full tracked/all-file repository gate.
+FILE_LIST_TMP="$(mktemp)"
+PERL_SCAN_TMP="$(mktemp)"
+cleanup_scan_tmp() {
+    rm -f "$FILE_LIST_TMP" "$PERL_SCAN_TMP"
 }
-EOF
+trap cleanup_scan_tmp EXIT
 
-if [[ ${#JSON_MATCHES[@]} -gt 0 ]]; then
-    exit 1
-else
-    exit 0
-fi
+collect_files > "$FILE_LIST_TMP"
+
+cat > "$PERL_SCAN_TMP" <<'PERL'
+use strict;
+use warnings;
+use File::Temp qw();
+
+my ($mode, $file_list_path) = @ARGV;
+
+my @secret_patterns = (
+    ["JWT-shape", qr/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/],
+    ["Stripe-secret", qr/sk_(live|test)_[A-Za-z0-9]{16,}/],
+    ["Stripe-publishable", qr/pk_(live|test)_[A-Za-z0-9]{16,}/],
+    ["GitHub-PAT", qr/ghp_[A-Za-z0-9]{30,}/],
+    ["GitHub-OAuth", qr/gho_[A-Za-z0-9]{30,}/],
+    ["GitHub-fine-grained", qr/github_pat_[A-Za-z0-9_]{40,}/],
+    ["GitLab-PAT", qr/glpat-[A-Za-z0-9_-]{16,}/],
+    ["Slack-bot", qr/xoxb-[A-Za-z0-9-]{20,}/],
+    ["Slack-user", qr/xoxp-[A-Za-z0-9-]{20,}/],
+    ["AWS-access-key", qr/AKIA[A-Z0-9]{16}/],
+    ["AWS-temporary-key", qr/ASIA[A-Z0-9]{16}/],
+    ["Google-API-key", qr/AIza[A-Za-z0-9_-]{35}/],
+    ["OpenAI-key", qr/sk-(proj-)?[A-Za-z0-9_-]{20,}/],
+    ["Anthropic-key", qr/sk-ant-(api|admin)[0-9]{2}-[A-Za-z0-9_-]{20,}/],
+    ["PostgreSQL-URL", qr{postgres(ql)?://[^:\s]+:[^@\s]+@[^/\s]+/[^\s]+}],
+    ["MongoDB-URL", qr{mongodb(\+srv)?://[^:\s]+:[^@\s]+@[^/\s]+}],
+    ["Generic-bearer-token", qr/[Aa]uthorization:\s*[Bb]earer\s+[A-Za-z0-9._-]{20,}/],
+    ["Hex-near-secret-keyword", qr/(api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer|password|passwd|client[_-]?secret)["']?\s*[:=]\s*["'][a-fA-F0-9]{32,}["']/i],
+    ["Base64-near-secret-keyword", qr/(api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer|password|passwd|client[_-]?secret)["']?\s*[:=]\s*["'][A-Za-z0-9+\/]{40,}={0,2}["']/i],
+    ["Long-value-near-secret-keyword", qr/(api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer|password|passwd|client[_-]?secret)["']?\s*[:=]\s*["'][A-Za-z0-9._+\/=-]{30,}["']/i],
+    ["Generic-live-key-quoted", qr/["'][A-Za-z0-9_-]{0,20}_live_[A-Za-z0-9]{20,}["']/i],
+    ["Generic-test-key-quoted", qr/["'][A-Za-z0-9_-]{0,20}_test_[A-Za-z0-9]{20,}["']/i],
+);
+
+my $allow_re = qr/\$\{[A-Z_][A-Z0-9_]*\}|\$\{\{[^}]+\}\}|\{\{[A-Z_][A-Z0-9_]*\}\}|<REDACTED>|your[-_]?(api[-_]?)?(key|token|secret|credential)[-_]?here|example[_-]?(api[_-]?)?(key|token|secret)|xxx[_-]?(test|live|prod|dev)?[_-]?xxx|os\.environ|process\.env|getenv\(|config\.get\(|env\.[A-Z_][A-Z0-9_]*|<your[^>]+>|<api[^>]+>|<token[^>]+>|<secret[^>]+>|redacted|placeholder|fake[_-]?(key|token|secret)|dummy[_-]?(key|token|secret)|sample[_-]?(key|token|secret)|sk-XXXX|sk_test_xxxxx|\.\.\./i;
+my $skip_re = qr/\.lock$|package-lock\.json$|pnpm-lock\.yaml$|yarn\.lock$|composer\.lock$|Cargo\.lock$|Gemfile\.lock$|poetry\.lock$|uv\.lock$|\.min\.(js|css)$|\.bundle\.(js|css)$|\.(png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|otf|eot|pdf|zip|tar|gz|tgz|bz2|7z|exe|dll|so|dylib|class|jar|pyc|pyo|whl|mp3|mp4|mov|avi)$|\/node_modules\/|\/dist\/|\/build\/|\/\.next\/|\/\.venv\/|\/venv\/|\/__pycache__\/|\/target\/|\/vendor\/|CHANGELOG\.md$|scan-secrets\.(ps1|sh)$|CODING_STANDARDS\.md$|yolo-honesty-checks\.md$/;
+
+sub json_escape {
+    my ($value) = @_;
+    $value =~ s/\\/\\\\/g;
+    $value =~ s/"/\\"/g;
+    $value =~ s/\t/\\t/g;
+    $value =~ s/\r/\\r/g;
+    $value =~ s/\n/\\n/g;
+    return $value;
+}
+
+open my $list_fh, '<', $file_list_path or die "cannot open file list: $!";
+my @matches;
+my $scanned = 0;
+
+while (my $file = <$list_fh>) {
+    chomp $file;
+    next if $file eq '';
+    next if !-f $file;
+    next if $file =~ $skip_re;
+    $scanned++;
+
+    open my $fh, '<', $file or next;
+    my $line_no = 0;
+    while (my $line = <$fh>) {
+        $line_no++;
+        next if $line =~ /^\s*$/;
+        next if $line =~ $allow_re;
+
+        for my $entry (@secret_patterns) {
+            my ($name, $pattern) = @$entry;
+            if ($line =~ $pattern) {
+                $line =~ s/\t/ /g;
+                $line =~ s/^\s+//;
+                $line =~ s/\s+$//;
+                my $snippet = length($line) > 200 ? substr($line, 0, 200) . "..." : $line;
+                push @matches, sprintf('{"file":"%s","line":%d,"pattern":"%s","snippet":"%s"}',
+                    json_escape($file), $line_no, json_escape($name), json_escape($snippet));
+                last;
+            }
+        }
+    }
+    close $fh;
+}
+close $list_fh;
+
+my $status = @matches ? "secrets_detected" : "clean";
+my $body = @matches ? "[" . join(",", @matches) . "]" : "[]";
+print "{\n";
+print "  \"matches\": $body,\n";
+print "  \"files_scanned\": $scanned,\n";
+print "  \"mode\": \"" . json_escape($mode) . "\",\n";
+print "  \"status\": \"$status\"\n";
+print "}\n";
+exit(@matches ? 1 : 0);
+PERL
+
+perl "$PERL_SCAN_TMP" "$MODE" "$FILE_LIST_TMP"

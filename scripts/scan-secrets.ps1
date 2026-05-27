@@ -79,6 +79,7 @@ $allowListPatterns = @(
     'getenv\(',
     'EnvironmentVariable',
     'config\.get\(',
+    'env\.[A-Z_][A-Z0-9_]*',
     '(?i)YOUR[_-]?(API[_-]?)?(KEY|TOKEN|SECRET)',
     '(?i)<(your|api|token|secret)[^>]+>',         # <your-key>, <api-key>
     '(?i)redacted',
