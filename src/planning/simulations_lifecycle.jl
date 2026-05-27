@@ -163,6 +163,7 @@ function simulation_worker!(
     ctx::TenantContext;
     worker_id::AbstractString = "simulation-worker",
     seed::Integer = 1,
+    solver_config::AllocationSolverConfig = AllocationSolverConfig(),
 )::Union{Nothing,NamedTuple}
     claimed = claim_next_simulation_run!(store, ctx; worker_id = worker_id)
     claimed === nothing && return nothing
@@ -171,7 +172,7 @@ function simulation_worker!(
     end
     try
         generate_demand_scenarios!(store, ctx, claimed[:id]; seed = seed)
-        generate_allocation_recommendations!(store, ctx, claimed[:id])
+        generate_allocation_recommendations!(store, ctx, claimed[:id]; config = solver_config)
         return complete_simulation_run!(store, claimed)
     catch err
         return fail_simulation_run!(store, claimed, _simulation_failure_message(err))

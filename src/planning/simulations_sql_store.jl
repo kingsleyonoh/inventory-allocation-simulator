@@ -127,18 +127,27 @@ function claim_next_simulation_run_for_system!(
     end
 end
 
+function _allocation_solver_config(config::AppConfig)::AllocationSolverConfig
+    return AllocationSolverConfig(
+        timeout_seconds = config.simulation.solver_timeout_seconds,
+        max_gap = config.simulation.max_solver_gap,
+        min_transfer_units = config.simulation.min_transfer_units,
+    )
+end
+
 function simulation_worker!(
     store::SqlTenantAdminStore,
     config::AppConfig;
     worker_id::AbstractString = "simulation-worker",
     seed::Integer = 1,
+    solver_config::AllocationSolverConfig = _allocation_solver_config(config),
 )::Union{Nothing,NamedTuple}
     claimed = claim_next_simulation_run_for_system!(store; worker_id = worker_id)
     claimed === nothing && return nothing
     ctx = TenantContext(claimed[:tenant_id]; role = "admin", auth_method = :job)
     try
         generate_demand_scenarios!(store, ctx, claimed[:id]; seed = seed)
-        generate_allocation_recommendations!(store, ctx, claimed[:id])
+        generate_allocation_recommendations!(store, ctx, claimed[:id]; config = solver_config)
         return complete_simulation_run!(store, claimed)
     catch err
         return fail_simulation_run!(store, claimed, _simulation_failure_message(err))
