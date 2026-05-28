@@ -310,4 +310,6 @@ docker compose -f docker-compose.prod.yml up -d
 
 Set the environment variables listed in **Setup > Environment** before starting.
 
-<!-- THEATRE_LINK -->
+---
+
+Full case study, architectural breakdown, and engineering deep-dive at [kingsleyonoh.com/projects/inventory-allocation-simulator](https://www.kingsleyonoh.com/projects/inventory-allocation-simulator)
