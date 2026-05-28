@@ -12,11 +12,13 @@ _health_route_definitions() = [
 ]
 
 _ui_route_definitions() = [
+    RouteDefinition(:GET, "/", "console_root"),
     RouteDefinition(:GET, "/login", "login_page"),
     RouteDefinition(:POST, "/login", "login_create"),
     RouteDefinition(:POST, "/logout", "logout"),
     RouteDefinition(:GET, "/dashboard", "dashboard"),
     RouteDefinition(:GET, "/imports", "imports_page"),
+    RouteDefinition(:POST, "/imports", "imports_create_form"),
     RouteDefinition(:GET, "/warehouses", "warehouses_page"),
     RouteDefinition(:POST, "/warehouses", "warehouses_create_form"),
     RouteDefinition(:POST, "/warehouses/:id", "warehouses_update_form"),

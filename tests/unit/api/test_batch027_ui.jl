@@ -113,6 +113,8 @@ end
     @test occursin("Balanced baseline", html)
     @test occursin("0.95", html)
     @test occursin("action=\"/policies/b0000000-0000-4000-8000-000000000001\"", html)
+    @test occursin("<option value=\"true\" selected>Allowed</option>", html)
+    @test occursin("<option value=\"active\" selected>Active</option>", html)
     @test occursin("Update policy", html)
     @test occursin("Archive policy", html)
     @test !occursin("Kōwhai active", html)
@@ -183,6 +185,15 @@ end
     @test !occursin("Kōwhai", detail_html)
 
     @test_throws ApiError render_simulation_detail_page(store, BATCH012_ADMIN_B, completed.id)
+
+    ui_store = batch012_store()
+    processed = InventoryAllocationSimulator._create_and_process_simulation_from_ui!(ui_store, batch012_config(), BATCH012_PLANNER_A, Dict(
+        "policy_id" => "b0000000-0000-4000-8000-000000000001",
+        "name" => "UI immediate simulation",
+        "scenario_count" => "1",
+    ))
+    @test processed.status in ("completed", "failed")
+    @test processed.status != "queued"
 end
 
 @testset "Batch 027 recommendation detail renders constraints sensitivity net value and gated actions" begin

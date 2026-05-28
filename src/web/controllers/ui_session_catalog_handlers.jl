@@ -138,6 +138,24 @@ function handle_imports_page(services::AppServices)
     end
 end
 
+function _create_and_process_import_from_ui!(store::AbstractTenantAdminStore, config::AppConfig, ctx::TenantContext, payload)::NamedTuple
+    job = create_import_job!(store, config, ctx, payload.import_type, payload.original_filename, payload.content)
+    return process_import_job!(store, config, ctx, job.id)
+end
+
+function handle_create_import_form(services::AppServices)
+    try
+        _enforce_route_rate_limit!(services, "POST", "/imports")
+        ctx, store = _protected_ui_context_and_store(services)
+        payload = _import_request_payload()
+        _create_and_process_import_from_ui!(store, services.config, ctx, payload)
+        return _redirect_response("/imports")
+    catch err
+        err isa AuthError && return _redirect_response("/login?next=%2Fimports")
+        return _ui_action_failure_response("Import upload failed", err)
+    end
+end
+
 function handle_warehouses_page(services::AppServices)
     try
         ctx, store = _protected_ui_context_and_store(services)

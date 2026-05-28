@@ -16,7 +16,7 @@ const UI_APP_SHELL_STYLE = """
     .ias-shell { min-height:100vh; display:grid; grid-template-columns: 220px 1fr; }
     .ias-sidebar { background:#0f1b2d; color:white; padding:1.25rem; }
     .ias-brand { font-size:1rem; font-weight:800; letter-spacing:.03em; margin-bottom:1rem; }
-    .ias-nav-link { display:block; color:#dbeafe; text-decoration:none; padding:.65rem .75rem; border-radius:.5rem; margin:.1rem 0; }
+    .ias-nav-link { min-height:2.75rem; display:flex; align-items:center; color:#dbeafe; text-decoration:none; padding:.65rem .75rem; border-radius:.5rem; margin:.1rem 0; }
     .ias-nav-link.is-active, .ias-nav-link:hover { background:#1e3a5f; color:white; }
     .ias-main { padding:1.5rem; max-width:1280px; width:100%; }
     .ias-panel { background:var(--panel); border:1px solid var(--line); border-radius:.85rem; padding:1rem; box-shadow:0 1px 2px rgba(15, 23, 42, .05); }
@@ -28,8 +28,8 @@ const UI_APP_SHELL_STYLE = """
     th, td { padding:.7rem .85rem; border-top:1px solid var(--line); text-align:left; vertical-align:top; }
     th { color:#334155; background:#f1f5f9; font-size:.88rem; }
     label { display:block; font-weight:700; margin:.5rem 0 .25rem; }
-    input, select { width:100%; min-height:2.6rem; border:1px solid #aab4c3; border-radius:.45rem; padding:.55rem .7rem; background:white; color:var(--ink); }
-    button, .ias-button { border:1px solid #1d4ed8; background:#1d4ed8; color:white; border-radius:.45rem; padding:.55rem .85rem; font-weight:700; cursor:pointer; text-decoration:none; display:inline-block; }
+    input, select { width:100%; min-height:2.75rem; border:1px solid #aab4c3; border-radius:.45rem; padding:.55rem .7rem; background:white; color:var(--ink); }
+    button, .ias-button { min-height:2.75rem; border:1px solid #1d4ed8; background:#1d4ed8; color:white; border-radius:.45rem; padding:.55rem .85rem; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
     button[disabled], .ias-button[aria-disabled=\"true\"] { background:#94a3b8; border-color:#94a3b8; cursor:not-allowed; }
     .ias-secondary { background:white; color:#1d4ed8; }
     .ias-danger { border-color:var(--bad); background:var(--bad); }

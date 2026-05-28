@@ -52,13 +52,27 @@ function _apply_policy_ui_form!(store::AbstractTenantAdminStore, ctx::TenantCont
     return policy_id === nothing ? create_allocation_policy!(store, ctx, normalized) : update_allocation_policy!(store, ctx, policy_id, normalized)
 end
 
+function _selected_attr(actual, expected)::String
+    return string(actual) == string(expected) ? " selected" : ""
+end
+
+function _boolean_select_options(actual::Bool; true_label::AbstractString = "Allowed", false_label::AbstractString = "Blocked")::String
+    return "<option value=\"true\"$(_selected_attr(actual, true))>$(_h(true_label))</option><option value=\"false\"$(_selected_attr(actual, false))>$(_h(false_label))</option>"
+end
+
+function _policy_status_options(status)::String
+    return _join_html(["<option value=\"$(_h(item))\"$(_selected_attr(status, item))>$(_h(titlecase(item)))</option>" for item in ["draft", "active", "archived"]])
+end
+
 function _policy_rows(policies, can_manage::Bool)::String
     isempty(policies) && return "<tr><td colspan=\"8\">No allocation policies yet.</td></tr>"
     return _join_html([begin
         max_cost = p.max_transfer_cost_cents === nothing ? "No cap" : string(p.max_transfer_cost_cents, "¢")
         max_cost_value = p.max_transfer_cost_cents === nothing ? "" : string(p.max_transfer_cost_cents)
         cross_region = p.allow_cross_region ? "Allowed" : "Blocked"
-        controls = can_manage ? "<form class=\"ias-inline-form\" method=\"post\" action=\"/policies/$(_h(p.id))\"><label>Name<input name=\"name\" value=\"$(_h(p.name))\" required></label><label>Objective<input name=\"objective\" value=\"$(_h(p.objective))\" required></label><label>Planning horizon days<input name=\"planning_horizon_days\" type=\"number\" min=\"1\" max=\"180\" value=\"$(_h(p.planning_horizon_days))\" required></label><label>Service-level target<input name=\"service_level_target\" type=\"number\" min=\"0.01\" max=\"1\" step=\"0.01\" value=\"$(_h(p.service_level_target))\" required></label><label>Max transfer cost cents<input name=\"max_transfer_cost_cents\" type=\"number\" min=\"0\" step=\"1\" value=\"$(_h(max_cost_value))\"></label><label>Allow cross-region<select name=\"allow_cross_region\"><option value=\"true\">Allowed</option><option value=\"false\">Blocked</option></select></label><label>Status<select name=\"status\"><option value=\"draft\">Draft</option><option value=\"active\">Active</option><option value=\"archived\">Archived</option></select></label><button class=\"ias-secondary\" type=\"submit\">Update policy</button></form><form class=\"ias-inline-form\" method=\"post\" action=\"/policies/$(_h(p.id))\"><input type=\"hidden\" name=\"status\" value=\"archived\"><button class=\"ias-danger\" type=\"submit\">Archive policy</button></form>" : "<span class=\"ias-muted\">Read only</span>"
+        region_options = _boolean_select_options(Bool(p.allow_cross_region))
+        status_options = _policy_status_options(p.status)
+        controls = can_manage ? "<form class=\"ias-inline-form\" method=\"post\" action=\"/policies/$(_h(p.id))\"><label>Name<input name=\"name\" value=\"$(_h(p.name))\" required></label><label>Objective<input name=\"objective\" value=\"$(_h(p.objective))\" required></label><label>Planning horizon days<input name=\"planning_horizon_days\" type=\"number\" min=\"1\" max=\"180\" value=\"$(_h(p.planning_horizon_days))\" required></label><label>Service-level target<input name=\"service_level_target\" type=\"number\" min=\"0.01\" max=\"1\" step=\"0.01\" value=\"$(_h(p.service_level_target))\" required></label><label>Max transfer cost cents<input name=\"max_transfer_cost_cents\" type=\"number\" min=\"0\" step=\"1\" value=\"$(_h(max_cost_value))\"></label><label>Allow cross-region<select name=\"allow_cross_region\">$region_options</select></label><label>Status<select name=\"status\">$status_options</select></label><button class=\"ias-secondary\" type=\"submit\">Update policy</button></form><form class=\"ias-inline-form\" method=\"post\" action=\"/policies/$(_h(p.id))\"><input type=\"hidden\" name=\"status\" value=\"archived\"><button class=\"ias-danger\" type=\"submit\">Archive policy</button></form>" : "<span class=\"ias-muted\">Read only</span>"
         "<tr><td>$(_h(p.name))</td><td>$(_h(p.objective))</td><td>$(_h(p.planning_horizon_days)) days</td><td>$(_h(p.service_level_target))</td><td>$(_h(max_cost))</td><td>$(_h(cross_region))</td><td>$(_h(p.status))</td><td>$controls</td></tr>"
     end for p in policies])
 end

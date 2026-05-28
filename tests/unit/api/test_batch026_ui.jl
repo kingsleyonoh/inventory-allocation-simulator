@@ -6,11 +6,13 @@ using InventoryAllocationSimulator
 @testset "Batch 026 UI route inventory and protected-route contracts are wired" begin
     definitions = route_definitions()
     expected = Set([
+        (:GET, "/"),
         (:GET, "/login"),
         (:POST, "/login"),
         (:POST, "/logout"),
         (:GET, "/dashboard"),
         (:GET, "/imports"),
+        (:POST, "/imports"),
         (:GET, "/warehouses"),
         (:GET, "/skus"),
     ])
@@ -122,11 +124,23 @@ end
     html = render_import_center_page(store, BATCH012_PLANNER_A)
     @test occursin("Import Center", html)
     @test occursin("Upload CSV", html)
+    @test occursin("action=\"/imports\"", html)
+    @test !occursin("action=\"/api/imports\"", html)
     @test occursin("warehouse_code,sku_code,on_hand_units", html)
     @test occursin("inventory-errors.csv", html)
     @test occursin("failed", html)
     @test occursin("UNKNOWN_SKU", html)
     @test occursin("Retry upload", html)
+
+    ui_store = batch012_store()
+    ui_config = batch014_config(upload_storage_path = mktempdir())
+    processed_ui = InventoryAllocationSimulator._create_and_process_import_from_ui!(ui_store, ui_config, BATCH012_PLANNER_A, (
+        import_type = "warehouses",
+        original_filename = "ui-warehouses.csv",
+        content = "code,name,region,capacity_units\nLON,London DC,GB-LDN,420\n",
+    ))
+    @test processed_ui.status == "completed"
+    @test any(w -> w.code == "LON" && w.name == "London DC", list_warehouses(ui_store, BATCH012_PLANNER_A).warehouses)
 end
 
 @testset "Batch 026 warehouse management page exposes create edit deactivate flows without cross-tenant leakage" begin

@@ -7,6 +7,9 @@ function register_ui_routes!(services::AppServices)::Nothing
 end
 
 function register_session_ui_routes!(services::AppServices)::Nothing
+    route("/"; method = GET) do
+        _redirect_response("/dashboard")
+    end
     route("/login"; method = GET) do
         handle_login_page(services)
     end
@@ -25,6 +28,9 @@ end
 function register_catalog_ui_routes!(services::AppServices)::Nothing
     route("/imports"; method = GET) do
         handle_imports_page(services)
+    end
+    route("/imports"; method = POST) do
+        handle_create_import_form(services)
     end
     route("/warehouses"; method = GET) do
         handle_warehouses_page(services)

@@ -134,11 +134,17 @@ function handle_simulations_page(services::AppServices)
     end
 end
 
+function _create_and_process_simulation_from_ui!(store::AbstractTenantAdminStore, config::AppConfig, ctx::TenantContext, payload)::NamedTuple
+    run = create_simulation_run!(store, ctx, payload)
+    processed = store isa SqlTenantAdminStore ? simulation_worker!(store, config; worker_id = "ui-simulation-worker") : simulation_worker!(store, ctx; worker_id = "ui-simulation-worker")
+    return processed === nothing ? run : processed
+end
+
 function handle_create_simulation_form(services::AppServices)
     try
         _enforce_route_rate_limit!(services, "POST", "/simulations")
         ctx, store = _protected_ui_context_and_store(services)
-        create_simulation_run!(store, ctx, _form_payload())
+        _create_and_process_simulation_from_ui!(store, services.config, ctx, _form_payload())
         return _redirect_response("/simulations")
     catch err
         err isa AuthError && return _redirect_response("/login?next=%2Fsimulations")
